@@ -1,5 +1,5 @@
 // This conventional test. Традиционный тест
-// Before his execute run grpc-server ./mtls-service/mtls-service.
+// Before his execute run grpc-server ./ds-mtls-service/ds-mtls-service.
 // Перед выполнением запустить сервер.
 
 package main

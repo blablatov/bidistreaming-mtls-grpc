@@ -64,7 +64,7 @@ func main() {
 		// Указываем транспортные аутентификационные данные в виде параметров соединения
 		// Поле ServerName должно быть равно значению Common Name, указанному в сертификате
 		grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
-			ServerName:   hostname, // NOTE: this is required!
+			ServerName:   hostname,
 			Certificates: []tls.Certificate{certificate},
 			RootCAs:      certPool,
 		})),

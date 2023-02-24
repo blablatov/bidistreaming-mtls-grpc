@@ -3,7 +3,7 @@
 
 ### Go 1.16+
 ```shell script
-go install github.com/golang/mock/mockgen@v1.5.0
+go install github.com/golang/mock/mockgen@v1.6.0
 ```
 
 ### Использование Gomock, генерация макетов интерфейсов клиентского gRPC-приложения. Use Gomock      
@@ -11,13 +11,13 @@ go install github.com/golang/mock/mockgen@v1.5.0
 (Runs generation code of mock up for interface OrderManagementClient): 
        
 ```shell script
-mockgen github.com/blablatov/bidistream-mtls-grpc/bs-mtls-proto OrderManagementClient > bs-mockups/order_management_mock.go
+mockgen github.com/blablatov/bidistream-mtls-grpc/bs-mtls-proto OrderManagementClient > bs-mockups/order_manager_mock.go
 ```
 
 ### Run test    
 
 ```shell script
-./mockups/order_management_mock_test.go
+./mockups/order_manager_mock_test.go
 ```
 
 
