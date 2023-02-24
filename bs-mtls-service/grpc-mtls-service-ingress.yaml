@@ -1,0 +1,16 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/backend-protocol: "GRPC"
+  name: grpc-bs-mtls-service-ingress
+spec:
+  rules:
+  - host: net-bs-mtls-service
+    http:
+      paths:
+      - backend:
+          serviceName: net-bs-mtls-service
+          servicePort: grpc

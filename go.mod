@@ -7,8 +7,8 @@ replace github.com/blablatov/bidistream-mtls-grpc/bs-mtls-proto => ./bs-mtls-pro
 replace github.com/blablatov/bidistream-mtls-grpc/bs-mcerts => ./bs-mcerts
 
 require (
-	github.com/blablatov/stream-mtls-grpc v0.0.0-20230221155128-be0e4bb827a0
 	github.com/golang/protobuf v1.5.2
+	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0
 	golang.org/x/oauth2 v0.5.0
 	google.golang.org/grpc v1.53.0
 	google.golang.org/protobuf v1.28.1
@@ -23,3 +23,5 @@ require (
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20230110181048-76db0878b65f // indirect
 )
+
+replace github.com/blablatov/bidistream-mtls-grpc/bs-mockups => ./bs-mockups

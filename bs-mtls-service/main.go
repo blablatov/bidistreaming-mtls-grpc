@@ -21,9 +21,9 @@ import (
 )
 
 var (
-	crtFile            = filepath.Join("..", "mcerts", "server.crt")
-	keyFile            = filepath.Join("..", "mcerts", "server.key")
-	caFile             = filepath.Join("..", "mcerts", "ca.crt")
+	crtFile            = filepath.Join("..", "bs-mcerts", "server.crt")
+	keyFile            = filepath.Join("..", "bs-mcerts", "server.key")
+	caFile             = filepath.Join("..", "bs-mcerts", "ca.crt")
 	errMissingMetadata = status.Errorf(codes.InvalidArgument, "missing metadata")
 	errInvalidToken    = status.Errorf(codes.Unauthenticated, "invalid token")
 )
@@ -82,7 +82,9 @@ func main() {
 	// Регистрируем реализованный сервис на созданном gRPCсервере с помощью сгенерированных AP
 	pb.RegisterOrderManagementServer(s, &mserver{})
 	initSampleData()
-	lis, err := net.Listen("tcp", port) // Начинаем прослушивать TCP на порту 50051. Listen on TCP port
+
+	// Начинаем прослушивать TCP на порту 50051. Listen on TCP port
+	lis, err := net.Listen("tcp", port)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
@@ -133,9 +135,9 @@ func ensureValidToken(ctx context.Context, req interface{},
 
 // Server unary interceptor, analizator data in gRPC on signature
 // Серверный унарный перехватчик, анализатор данных в gRPC по их сигнатуре
-func orderUnaryServerInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	// Pre-processing logic
-	// Gets info about the current RPC call by examining the args passed in
+func orderUnaryServerInterceptor(ctx context.Context, req interface{},
+	info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	//Pre-processing. LogicGets info about the current RPC call by examining the args passed in
 	// Логика перед вызовом. Получает информацию о текущем RPC-вызове путем анализа переданных аргументов
 	log.Println("====== [Server Interceptor] ", info.FullMethod)
 	log.Printf(" Pre Proc Message : %s", req)

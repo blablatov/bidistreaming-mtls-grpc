@@ -1,14 +1,20 @@
+// Testing remote functions without using network and real run test
+// Модульное тестирование бизнес-логики удаленных функций без использования сети и обычный тест
+
 package main
 
 import (
 	"context"
+	"io"
 	"log"
 	"net"
 	"testing"
 	"time"
 
-	pb "github.com/blablatov/stream-mtls-grpc/mtls-proto"
+	pb "github.com/blablatov/bidistream-mtls-grpc/bs-mtls-proto"
+	"github.com/golang/protobuf/ptypes/wrappers"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/encoding/gzip"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/test/bufconn"
 )
@@ -43,10 +49,9 @@ func getBufDialer(listener *bufconn.Listener) func(context.Context, string) (net
 	}
 }
 
-// Initialization of BufConn.
-// Package bufconn provides a net. Реализует имитацию запуска сервера на реальном порту
-// Conn implemented by a buffer and related dialing and listening functionality.
-// Реализован с использованием буфера
+// Initialization of BufConn. Package bufconn provides a net
+// Conn implemented by a buffer and related dialing and listening functionality
+// Реализует имитацию запуска сервера на реальном порту с использованием буфера
 func initGRPCServerBuffConn() {
 	listener = bufconn.Listen(bufSize)
 	s := grpc.NewServer()
@@ -61,7 +66,7 @@ func initGRPCServerBuffConn() {
 }
 
 // Conventional test that starts a gRPC server and client test the service with RPC
-func TestServer_AddProduct(t *testing.T) {
+func TestServer_ProcessOrders(t *testing.T) {
 	// Starting a conventional gRPC server runs on HTTP2
 	// Запускаем стандартный gRPC-сервер поверх HTTP/2
 	initGRPCServerHTTP2()
@@ -70,25 +75,51 @@ func TestServer_AddProduct(t *testing.T) {
 		log.Fatalf("did not connect: %v", err)
 	}
 	defer conn.Close()
-	c := pb.NewOrderManagementClient(conn)
 
-	// Contact the server and print out its response.
-	id := "Sumsung S10"
-	description := "Samsung Galaxy S10 is the latest smart phone, launched in February 2019"
-	price := float32(700.0)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	// Ее экземпляр содержит все удаленные методы, которые можно вызвать на сервере
+	client := pb.NewOrderManagementClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
-	// Calls remote method of AddProduct
-	// Вызываем удаленный метод AddProduct
-	r, err := c.AddOrder(ctx, &pb.Order{Id: id, Description: description, Price: price})
-	if err != nil { // Checks response. Проверяем ответ
-		log.Fatalf("Could not add product: %v", err)
+
+	// Process Order : Bi-distreaming scenario
+	// Вызываем удаленный метод и получаем ссылку на поток записи и чтения на клиентской стороне
+	streamProcOrder, err := client.ProcessOrders(ctx, grpc.UseCompressor(gzip.Name))
+	if err != nil {
+		log.Fatalf("%v.ProcessOrders(_) = _, %v", client, err)
 	}
-	log.Printf("Res %s", r.Value)
+
+	// Отправляем сообщения сервису.
+	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "102"}); err != nil {
+		log.Fatalf("%v.Send(%v) = %v", client, "102", err)
+	}
+
+	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "103"}); err != nil {
+		log.Fatalf("%v.Send(%v) = %v", client, "103", err)
+	}
+
+	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "104"}); err != nil {
+		log.Fatalf("%v.Send(%v) = %v", client, "104", err)
+	}
+
+	channel := make(chan int) // Создаем канал для горутин (create chanel for goroutines)
+	// Вызываем функцию с помощью горутин, распараллеливаем чтение сообщений, возвращаемых сервисом
+	go asncClientBidirectionalRPC(streamProcOrder, channel)
+	time.Sleep(time.Millisecond * 1000) // Имитируем задержку при отправке сервису сообщений. Wait time
+
+	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "101"}); err != nil {
+		log.Fatalf("%v.Send(%v) = %v", client, "101", err)
+	}
+
+	// Сигнализируем о завершении клиентского потока (с ID заказов)
+	// Signal about close stream of client
+	if err := streamProcOrder.CloseSend(); err != nil {
+		log.Fatal(err)
+	}
+	channel <- 1
 }
 
 // Test written using Buffconn
-func TestServer_AddProductBufConn(t *testing.T) {
+func TestServer_ProcessOrdersBufConn(t *testing.T) {
 	ctx := context.Background()
 	initGRPCServerBuffConn()
 	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(getBufDialer(listener)), grpc.WithInsecure())
@@ -96,23 +127,53 @@ func TestServer_AddProductBufConn(t *testing.T) {
 		log.Fatalf("did not connect: %v", err)
 	}
 	defer conn.Close()
-	c := pb.NewOrderManagementClient(conn)
 
-	// Contact the server and print out its response.
-	id := "Sumsung S10"
-	description := "Samsung Galaxy S10 is the latest smart phone, launched in February 2019"
-	price := float32(700.0)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	// Передаем соединение и создаем заглушку
+	// Ее экземпляр содержит все удаленные методы, которые можно вызвать на сервере
+	client := pb.NewOrderManagementClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
-	r, err := c.AddOrder(ctx, &pb.Order{Id: id, Description: description, Price: price})
+
+	// Process Order : Bi-distreaming scenario
+	// Вызываем удаленный метод и получаем ссылку на поток записи и чтения на клиентской стороне
+	streamProcOrder, err := client.ProcessOrders(ctx, grpc.UseCompressor(gzip.Name))
 	if err != nil {
-		log.Fatalf("Could not add product: %v", err)
+		log.Fatalf("%v.ProcessOrders(_) = _, %v", client, err)
 	}
-	log.Printf(r.Value)
+
+	// Отправляем сообщения сервису.
+	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "102"}); err != nil {
+		log.Fatalf("%v.Send(%v) = %v", client, "102", err)
+	}
+
+	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "103"}); err != nil {
+		log.Fatalf("%v.Send(%v) = %v", client, "103", err)
+	}
+
+	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "104"}); err != nil {
+		log.Fatalf("%v.Send(%v) = %v", client, "104", err)
+	}
+
+	channel := make(chan int) // Создаем канал для горутин (create chanel for goroutines)
+	// Вызываем функцию с помощью горутин, распараллеливаем чтение сообщений, возвращаемых сервисом
+	go asncClientBidirectionalRPC(streamProcOrder, channel)
+	time.Sleep(time.Millisecond * 1000) // Имитируем задержку при отправке сервису сообщений. Wait time
+
+	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "101"}); err != nil {
+		log.Fatalf("%v.Send(%v) = %v", client, "101", err)
+	}
+
+	// Сигнализируем о завершении клиентского потока (с ID заказов)
+	// Signal about close stream of client
+	if err := streamProcOrder.CloseSend(); err != nil {
+		log.Fatal(err)
+	}
+	channel <- 1
 }
 
+// Benchmark test
 // Тестирование производительности в цикле за указанное колличество итераций
-func BenchmarkServer_AddProductBufConn(b *testing.B) {
+func BenchmarkServer_ProcessOrdersBufConn(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < 25; i++ {
 		ctx := context.Background()
@@ -122,18 +183,59 @@ func BenchmarkServer_AddProductBufConn(b *testing.B) {
 			log.Fatalf("did not connect: %v", err)
 		}
 		defer conn.Close()
-		c := pb.NewOrderManagementClient(conn)
 
-		// Contact the server and print out its response.
-		id := "Sumsung S999"
-		description := "Samsung Galaxy S10 is the latest smart phone, launched in February 2029"
-		price := float32(99999.0)
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		// Ее экземпляр содержит все удаленные методы, которые можно вызвать на сервере
+		client := pb.NewOrderManagementClient(conn)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
-		r, err := c.AddOrder(ctx, &pb.Order{Id: id, Description: description, Price: price})
+
+		// Process Order : Bi-distreaming scenario
+		// Вызываем удаленный метод и получаем ссылку на поток записи и чтения на клиентской стороне
+		streamProcOrder, err := client.ProcessOrders(ctx, grpc.UseCompressor(gzip.Name))
 		if err != nil {
-			log.Fatalf("Could not add product: %v", err)
+			log.Fatalf("%v.ProcessOrders(_) = _, %v", client, err)
 		}
-		log.Printf(r.Value)
+
+		// Отправляем сообщения сервису.
+		if err := streamProcOrder.Send(&wrappers.StringValue{Value: "102"}); err != nil {
+			log.Fatalf("%v.Send(%v) = %v", client, "102", err)
+		}
+
+		if err := streamProcOrder.Send(&wrappers.StringValue{Value: "103"}); err != nil {
+			log.Fatalf("%v.Send(%v) = %v", client, "103", err)
+		}
+
+		if err := streamProcOrder.Send(&wrappers.StringValue{Value: "104"}); err != nil {
+			log.Fatalf("%v.Send(%v) = %v", client, "104", err)
+		}
+
+		channel := make(chan int) // Создаем канал для горутин (create chanel for goroutines)
+		// Вызываем функцию с помощью горутин, распараллеливаем чтение сообщений, возвращаемых сервисом
+		go asncClientBidirectionalRPC(streamProcOrder, channel)
+		time.Sleep(time.Millisecond * 1000) // Имитируем задержку при отправке сервису сообщений. Wait time
+
+		if err := streamProcOrder.Send(&wrappers.StringValue{Value: "101"}); err != nil {
+			log.Fatalf("%v.Send(%v) = %v", client, "101", err)
+		}
+
+		// Сигнализируем о завершении клиентского потока (с ID заказов)
+		// Signal about close stream of client
+		if err := streamProcOrder.CloseSend(); err != nil {
+			log.Fatal(err)
+		}
+		channel <- 1
 	}
+}
+
+func asncClientBidirectionalRPC(streamProcOrder pb.OrderManagement_ProcessOrdersClient, c chan int) {
+	for {
+		// Читаем сообщения сервиса на клиентской стороне
+		// Read messages on side of client
+		combinedShipment, errProcOrder := streamProcOrder.Recv()
+		if errProcOrder == io.EOF { // Обнаружение конца потока. End of stream
+			break
+		}
+		log.Println("Combined shipment : ", combinedShipment.OrdersList)
+	}
+	<-c
 }

@@ -20,9 +20,9 @@ import (
 )
 
 var (
-	crtFile = filepath.Join("..", "mcerts", "client.crt")
-	keyFile = filepath.Join("..", "mcerts", "client.key")
-	caFile  = filepath.Join("..", "mcerts", "ca.crt")
+	crtFile = filepath.Join("..", "bs-mcerts", "client.crt")
+	keyFile = filepath.Join("..", "bs-mcerts", "client.key")
+	caFile  = filepath.Join("..", "bs-mcerts", "ca.crt")
 )
 
 const (
@@ -83,6 +83,7 @@ func main() {
 	client := pb.NewOrderManagementClient(conn)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
+
 	// Process Order : Bi-distreaming scenario
 	// Вызываем удаленный метод и получаем ссылку на поток записи и чтения на клиентской стороне
 	streamProcOrder, err := client.ProcessOrders(ctx, grpc.UseCompressor(gzip.Name))

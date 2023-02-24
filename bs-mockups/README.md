@@ -11,13 +11,13 @@ go install github.com/golang/mock/mockgen@v1.5.0
 (Runs generation code of mock up for interface OrderManagementClient): 
        
 ```shell script
-mockgen github.com/blablatov/stream-mtls-grpc/mtls-proto OrderManagementClient > mockups/order_mock.go
+mockgen github.com/blablatov/bidistream-mtls-grpc/bs-mtls-proto OrderManagementClient > bs-mockups/order_management_mock.go
 ```
 
 ### Run test    
 
 ```shell script
-./mockups/order_mock_test.go
+./mockups/order_management_mock_test.go
 ```
 
 
