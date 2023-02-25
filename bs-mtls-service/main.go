@@ -9,6 +9,7 @@ import (
 	"net"
 	"path/filepath"
 	"strings"
+	"time"
 
 	pb "github.com/blablatov/bidistream-mtls-grpc/bs-mtls-proto"
 	"github.com/grpc-ecosystem/go-grpc-middleware"
@@ -65,12 +66,14 @@ func main() {
 			},
 			)),
 		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
-			// Registers unary interceptor to gRPC-server
+			// Registers unary interceptor to gRPC-server. Регистрация унарного перехватчика
 			// Будет направлять клиентские запросы к функции ensureValidBasicCredentials
 			grpc.UnaryServerInterceptor(ensureValidToken),
-			// Регистрация дополнительного унарного перехватчика на gRPC-сервере
-			// Будет направлять клиентские запросы к функции orderUnaryServerInterceptor
-			grpc.UnaryServerInterceptor(orderUnaryServerInterceptor),
+		)),
+		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
+			// Регистрация дополнительного потокового перехватчика на gRPC-сервере
+			// Будет направлять клиентские запросы к функции orderServerStreamInterceptor
+			grpc.StreamServerInterceptor(orderServerStreamInterceptor),
 		)),
 	}
 
@@ -133,21 +136,44 @@ func ensureValidToken(ctx context.Context, req interface{},
 	return handler(ctx, req)
 }
 
-// Server unary interceptor, analizator data in gRPC on signature
-// Серверный унарный перехватчик, анализатор данных в gRPC по их сигнатуре
-func orderUnaryServerInterceptor(ctx context.Context, req interface{},
-	info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	//Pre-processing. LogicGets info about the current RPC call by examining the args passed in
-	// Логика перед вызовом. Получает информацию о текущем RPC-вызове путем анализа переданных аргументов
-	log.Println("====== [Server Interceptor] ", info.FullMethod)
-	log.Printf(" Pre Proc Message : %s", req)
+// Stream wraps around the embedded grpc.Server Stream, and intercepts the RecvMsg and SendMsg method call
+// Обертка вокруг встроенного интерфейса grpc.ServerStream, перехватывает вызовы методов RecvMsg и SendMsg.
+type wrappedStream struct {
+	grpc.ServerStream
+}
 
-	// Invoking the handler to complete the normal execution of a unary RPC
-	// Вызываем обработчик, чтобы завершить нормальное выполнение унарного RPC-вызова
-	m, err := handler(ctx, req)
+// RecvMsg wrapper function, handles received gRPC streaming messages
+// Функция обертки RecvMsg, обрабатывает принимаемые сообщения потокового gRPC
+func (w *wrappedStream) RecvMsg(m interface{}) error {
+	log.Printf("====== [Server Stream Interceptor Wrapper] Receive a message (Type: %T) at %s",
+		m, time.Now().Format(time.RFC3339))
+	return w.ServerStream.RecvMsg(m)
+}
 
-	// Post processing logic
-	// Логика после вызова
-	log.Printf(" Post Proc Message : %s", m)
-	return m, err
+// The wrapper function RecvMsg, handles the sent messages of the streaming gRPC
+// Функция обертки RecvMsg, обрабатывает отправляемые сообщения потокового gRPC
+func (w *wrappedStream) SendMsg(m interface{}) error {
+	log.Printf("====== [Server Stream Interceptor Wrapper] Send a message (Type: %T) at %v",
+		m, time.Now().Format(time.RFC3339))
+	return w.ServerStream.SendMsg(m)
+}
+
+// Creating wrapper function. Создание экземпляра функции-обертки
+func newWrappedStream(s grpc.ServerStream) grpc.ServerStream {
+	return &wrappedStream{s}
+}
+
+// Creates streaming interceptor. Реализация потокового перехватчика
+func orderServerStreamInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo,
+	handler grpc.StreamHandler) error {
+	// Pre-processing. Этап предобработки
+	log.Println("====== [Server Stream Interceptor] ", info.FullMethod)
+
+	// Invoking the StreamHandler to complete the execution of RPC invocation
+	// Вызов метода потокового RPC с помощью обертки.
+	err := handler(srv, newWrappedStream(ss))
+	if err != nil {
+		log.Printf("RPC failed with error %v", err)
+	}
+	return err
 }
