@@ -31,7 +31,7 @@ var (
 
 const (
 	port           = ":50051"
-	orderBatchSize = 3
+	orderBatchSize = 1 // Group of orders. Заказы обрабатываются группами.
 )
 
 func main() {
@@ -105,7 +105,7 @@ func initSampleData() {
 	orderMap["103"] = pb.Order{Id: "103", Items: []string{"Apple Watch S4"}, Destination: "San Jose, CA", Price: 400.00}
 	orderMap["104"] = pb.Order{Id: "104", Items: []string{"Google Home Mini", "Google Nest Hub"}, Destination: "Mountain View, CA", Price: 400.00}
 	orderMap["105"] = pb.Order{Id: "105", Items: []string{"Amazon Echo"}, Destination: "San Jose, CA", Price: 30.00}
-	orderMap["106"] = pb.Order{Id: "106", Items: []string{"Amazon Echo", "Apple iPhone XS"}, Destination: "Mountain View, CA", Price: 300.00}
+	orderMap["106"] = pb.Order{Id: "106", Items: []string{"Ozon Echo", "Apple iPhone XS"}, Destination: "Mountain View, CA", Price: 300.00}
 }
 
 // Validates the authorization. Валидация токена
@@ -150,8 +150,8 @@ func (w *wrappedStream) RecvMsg(m interface{}) error {
 	return w.ServerStream.RecvMsg(m)
 }
 
-// The wrapper function RecvMsg, handles the sent messages of the streaming gRPC
-// Функция обертки RecvMsg, обрабатывает отправляемые сообщения потокового gRPC
+// The wrapper function SendMsg, handles the sent messages of the streaming gRPC
+// Функция обертки SendMsg, обрабатывает отправляемые сообщения потокового gRPC
 func (w *wrappedStream) SendMsg(m interface{}) error {
 	log.Printf("====== [Server Stream Interceptor Wrapper] Send a message (Type: %T) at %v",
 		m, time.Now().Format(time.RFC3339))

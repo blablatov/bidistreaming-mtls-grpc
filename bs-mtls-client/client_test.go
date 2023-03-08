@@ -52,7 +52,7 @@ func TestClient_ProcessOrders(t *testing.T) {
 		// Указываем один и тот же токен OAuth в параметрах всех вызовов в рамках одного соединения.
 		// Если нужно указывать токен для каждого вызова отдельно, используем CallOption.
 		grpc.WithPerRPCCredentials(tokau),
-		// Указываем транспортные аутентификационные данные в виде параметров соединения
+		// Указываем транспортные аутентификационные данные в виде параметров соединения
 		// Поле ServerName должно быть равно значению Common Name, указанному в сертификате
 		grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
 			ServerName:   hostname, // NOTE: this is required!

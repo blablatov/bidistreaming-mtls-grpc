@@ -81,7 +81,8 @@ func main() {
 	// Передаем соединение и создаем заглушку.
 	// Ее экземпляр содержит все удаленные методы, которые можно вызвать на сервере
 	client := pb.NewOrderManagementClient(conn)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	//ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)//err context deadline
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	// Process Order : Bi-distreaming scenario
@@ -90,7 +91,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("%v.ProcessOrders(_) = _, %v", client, err)
 	}
-	// Отправляем сообщения сервису.
+	// Sends IDs. Отправляем сообщения с ID сервису.
 	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "102"}); err != nil {
 		log.Fatalf("%v.Send(%v) = %v", client, "102", err)
 	}
@@ -103,13 +104,12 @@ func main() {
 		log.Fatalf("%v.Send(%v) = %v", client, "104", err)
 	}
 
-	channel := make(chan int) // Создаем канал для горутин (create chanel for goroutines)
-	// Вызываем функцию с помощью горутин, распараллеливаем чтение сообщений, возвращаемых сервисом
-	go asncClientBidirectionalRPC(streamProcOrder, channel)
-	time.Sleep(time.Millisecond * 1000) // Имитируем задержку при отправке сервису сообщений. Wait time
+	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "105"}); err != nil {
+		log.Fatalf("%v.Send(%v) = %v", client, "105", err)
+	}
 
-	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "101"}); err != nil {
-		log.Fatalf("%v.Send(%v) = %v", client, "101", err)
+	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "106"}); err != nil {
+		log.Fatalf("%v.Send(%v) = %v", client, "106", err)
 	}
 
 	// Сигнализируем о завершении клиентского потока (с ID заказов)
@@ -117,10 +117,16 @@ func main() {
 	if err := streamProcOrder.CloseSend(); err != nil {
 		log.Fatal(err)
 	}
-	channel <- 1
+
+	channel := make(chan struct{}) // Создаем канал для горутин (create chanel for goroutines)
+	// Вызываем функцию с помощью горутин, распараллеливаем чтение сообщений, возвращаемых сервисом
+	go asncClientBidirectionalRPC(streamProcOrder, channel)
+	time.Sleep(time.Millisecond * 1000) // Имитируем задержку при отправке сервису сообщений. Wait time
+
+	<-channel
 }
 
-func asncClientBidirectionalRPC(streamProcOrder pb.OrderManagement_ProcessOrdersClient, c chan int) {
+func asncClientBidirectionalRPC(streamProcOrder pb.OrderManagement_ProcessOrdersClient, c chan struct{}) {
 	for {
 		// Читаем сообщения сервиса на клиентской стороне
 		// Read messages on side of client
@@ -128,7 +134,7 @@ func asncClientBidirectionalRPC(streamProcOrder pb.OrderManagement_ProcessOrders
 		if errProcOrder == io.EOF { // Обнаружение конца потока. End of stream
 			break
 		}
-		log.Println("Combined shipment : ", combinedShipment.OrdersList)
+		log.Println("Combined shipment : ", combinedShipment.Status, combinedShipment.OrdersList)
 	}
 	<-c
 }

@@ -21,25 +21,26 @@ func (s *mserver) ProcessOrders(stream pb.OrderManagement_ProcessOrdersServer) e
 	batchMarker := 1
 	var combinedShipmentMap = make(map[string]pb.CombinedShipment)
 	for {
-		orderId, err := stream.Recv() // Читаем ID заказов из входящего потока
+		orderId, err := stream.Recv() // Reads IDs. Читаем ID заказов из входящего потока
 		log.Printf("Reading Proc order : %s", orderId)
-		if err == io.EOF { // Продолжаем читать, пока не обнаружим конец потока.
+		if err == io.EOF { // Reads IDs to EOF. Продолжаем читать, пока не обнаружим конец потока
 			// Client has sent all the messages
 			// Send remaining shipments
 			log.Printf("EOF : %s", orderId)
 			for _, shipment := range combinedShipmentMap {
-				// При обнаружении конца потока отправляем клиенту все сгруппированные данные, которые еще остались.
+				// If EOF sends all data of groups
+				// При обнаружении конца потока отправляем клиенту все сгруппированные оставшиеся данные
 				if err := stream.Send(&shipment); err != nil {
 					return err
 				}
 			}
-			return nil //Сервер завершает поток, возвращая nil
+			return nil //Closes stream. Сервер завершает поток, возвращая nil
 		}
 		if err != nil {
 			log.Println(err)
 			return err
 		}
-		// Логика для объединения заказов в партии на основе адреса доставки
+		// Logic makes group of orders. Логика для объединения заказов в партии на основе адреса доставки
 		destination := orderMap[orderId.GetValue()].Destination
 		shipment, found := combinedShipmentMap[destination]
 
@@ -56,11 +57,11 @@ func (s *mserver) ProcessOrders(stream pb.OrderManagement_ProcessOrdersServer) e
 		}
 
 		if batchMarker == orderBatchSize {
-			// Передаем клиенту поток заказов, объединенных в партии
+			// Передаем клиенту поток заказов, объединенных в партии, group orderBatchSize
 			for _, comb := range combinedShipmentMap {
-				// Передаем клиенту партию объединенных заказов
+				// Group of orders. Передаем клиенту партию объединенных заказов
 				log.Printf("Shipping : %v -> %v", comb.Id, len(comb.OrdersList))
-				if err := stream.Send(&comb); err != nil { // Запись объединенных заказов в поток
+				if err := stream.Send(&comb); err != nil { // Writes group of orders. Запись объединенных заказов в поток
 					return err
 				}
 			}
