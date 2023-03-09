@@ -35,6 +35,9 @@ const (
 )
 
 func main() {
+	log.SetPrefix("Server event: ")
+	log.SetFlags(log.Lshortfile)
+
 	// Reading opened/closed keys to enable TLS
 	// Считываем и анализируем открытый/закрытый ключи и создаем сертификат, чтобы включить TLS
 	cert, err := tls.LoadX509KeyPair(crtFile, keyFile)

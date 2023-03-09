@@ -31,6 +31,9 @@ const (
 )
 
 func main() {
+	log.SetPrefix("Client event: ")
+	log.SetFlags(log.Lshortfile)
+
 	// Set up the credentials for the connection
 	// Значение токена OAuth2. Используем строку, прописанную в коде
 	autok := oauth.NewOauthAccess(fetchToken())

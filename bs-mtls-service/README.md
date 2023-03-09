@@ -9,5 +9,5 @@ docker build -t bs-mtls-service .
 Развернуть задание с серверным gRPC-приложением:         
 
 ```shell script
-kubectl apply -f grpc-bs-mtls-service.yaml
+kubectl apply -f bs-grpc-mtls-service.yaml
 ```
