@@ -60,6 +60,8 @@ func main() {
 	}
 
 	opts := []grpc.DialOption{
+		// Register interceptor of stream. Регистрация потокового перехватчика
+		grpc.WithStreamInterceptor(clientStreamInterceptor),
 		// Указываем один и тот же токен OAuth в параметрах всех вызовов в рамках одного соединения
 		// Если нужно указывать токен для каждого вызова отдельно, используем CallOption
 		grpc.WithPerRPCCredentials(autok),
@@ -115,8 +117,8 @@ func main() {
 		log.Fatalf("%v.Send(%v) = %v", client, "106", err)
 	}
 
-	// Сигнализируем о завершении клиентского потока (с ID заказов)
 	// Signal about close stream of client
+	// Сигнализируем о завершении клиентского потока (с ID заказов)
 	if err := streamProcOrder.CloseSend(); err != nil {
 		log.Fatal(err)
 	}
@@ -124,17 +126,17 @@ func main() {
 	channel := make(chan struct{}) // Создаем канал для горутин (create chanel for goroutines)
 	// Вызываем функцию с помощью горутин, распараллеливаем чтение сообщений, возвращаемых сервисом
 	go asncClientBidirectionalRPC(streamProcOrder, channel)
-	time.Sleep(time.Millisecond * 1000) // Имитируем задержку при отправке сервису сообщений. Wait time
+	time.Sleep(time.Millisecond * 1000) //  Wait time. Имитируем задержку при отправке сервису сообщений.
 
 	<-channel
 }
 
 func asncClientBidirectionalRPC(streamProcOrder pb.OrderManagement_ProcessOrdersClient, c chan struct{}) {
 	for {
-		// Читаем сообщения сервиса на клиентской стороне
 		// Read messages on side of client
+		// Читаем сообщения сервиса на клиентской стороне
 		combinedShipment, errProcOrder := streamProcOrder.Recv()
-		if errProcOrder == io.EOF { // Обнаружение конца потока. End of stream
+		if errProcOrder == io.EOF { // End of stream. Обнаружение конца потока.
 			break
 		}
 		log.Println("Combined shipment : ", combinedShipment.Status, combinedShipment.OrdersList)
@@ -142,10 +144,52 @@ func asncClientBidirectionalRPC(streamProcOrder pb.OrderManagement_ProcessOrders
 	<-c
 }
 
-// Учетные данные для соединения. Предоставление токена OAuth2
 // Provides OAuth2 connection token
+// Учетные данные для соединения. Предоставление токена OAuth2
 func fetchToken() *oauth2.Token {
 	return &oauth2.Token{
 		AccessToken: "blablatok-tokblabla-blablatok",
 	}
+}
+
+// Client stream interceptor in gRPC
+// Клиентский потоковый перехватчик в gRPC
+func clientStreamInterceptor(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn,
+	method string, streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+
+	// Preprocessing stage, haves access to RPC request before sent to server
+	// Этап предобработки, есть доступ к RPC-запросу перед его отправкой на сервер
+	log.Println("===== [Client Interceptor] ", method)
+	s, err := streamer(ctx, desc, cc, method, opts...) // Call func streamer. Вызов функции streamer.
+	if err != nil {
+		return nil, err
+	}
+
+	// Creating wrapper around Client Stream interface, with intercept and go back to app
+	// Создание обертки вокруг интерфейса ClientStream, с перехватом и возвращением приложению
+	return newWrappedStream(s), nil
+}
+
+// Wrapper for interface of rpc.ClientStream
+// Обертка для интерфейса grpc.ClientStream
+type wrappedStream struct {
+	grpc.ClientStream
+}
+
+// Func for intercepting received messages of streaming gRPC
+// Функция для перехвата принимаемых сообщений потокового gRPC
+func (w *wrappedStream) RecvMsg(m interface{}) error {
+	log.Printf("===== [Client Stream Interceptor] Receive a message (Type: %T) at %v", m, time.Now().Format(time.RFC3339))
+	return w.ClientStream.RecvMsg(m)
+}
+
+// Func for intercepting sended messages of streaming gRPC
+// Функция для перехвата отпрвляемых сообщений потокового gRPC
+func (w *wrappedStream) SendMsg(m interface{}) error {
+	log.Printf("===== [Client Stream Interceptor] Send a message (Type: %T) at %v", m, time.Now().Format(time.RFC3339))
+	return w.ClientStream.SendMsg(m)
+}
+
+func newWrappedStream(s grpc.ClientStream) grpc.ClientStream {
+	return &wrappedStream{s}
 }
