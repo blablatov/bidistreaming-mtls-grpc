@@ -87,6 +87,7 @@ func main() {
 	// Register realise of service on created gRPC-server via generated of AP
 	// Регистрируем реализованный сервис на созданном gRPCсервере с помощью сгенерированных AP
 	pb.RegisterOrderManagementServer(s, &mserver{})
+
 	initSampleData()
 
 	// Начинаем прослушивать TCP на порту 50051. Listen on TCP port

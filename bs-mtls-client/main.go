@@ -87,7 +87,11 @@ func main() {
 	// Ее экземпляр содержит все удаленные методы, которые можно вызвать на сервере
 	client := pb.NewOrderManagementClient(conn)
 	//ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)//err context deadline
-	ctx, cancel := context.WithCancel(context.Background())
+	//ctx, cancel := context.WithCancel(context.Background())
+
+	// Finding of Duration. Тестированием определить оптимальное значение для крайнего срока кпд
+	clientDeadline := time.Now().Add(time.Duration(600 * time.Millisecond))
+	ctx, cancel := context.WithDeadline(context.Background(), clientDeadline)
 	defer cancel()
 
 	// Process Order : Bi-distreaming scenario
@@ -123,25 +127,35 @@ func main() {
 		log.Fatal(err)
 	}
 
-	channel := make(chan struct{}) // Создаем канал для горутин (create chanel for goroutines)
+	channel := make(chan bool, 1) // Создаем канал для горутин (create chanel for goroutines)
 	// Вызываем функцию с помощью горутин, распараллеливаем чтение сообщений, возвращаемых сервисом
 	go asncClientBidirectionalRPC(streamProcOrder, channel)
 	time.Sleep(time.Millisecond * 1000) //  Wait time. Имитируем задержку при отправке сервису сообщений.
 
+	// Cancelling the RPC. Отмена удаленного вызова gRPC на клиентской стороне
+	cancel()
+	log.Printf("RPC Status : %s", ctx.Err()) // Status of context. Состояние текущего контекста
+
 	<-channel
 }
 
-func asncClientBidirectionalRPC(streamProcOrder pb.OrderManagement_ProcessOrdersClient, c chan struct{}) {
+func asncClientBidirectionalRPC(streamProcOrder pb.OrderManagement_ProcessOrdersClient, c chan bool) {
 	for {
 		// Read messages on side of client
 		// Читаем сообщения сервиса на клиентской стороне
 		combinedShipment, errProcOrder := streamProcOrder.Recv()
-		if errProcOrder == io.EOF { // End of stream. Обнаружение конца потока.
+		if errProcOrder != nil {
+			log.Printf("Error Receiving messages: %v", errProcOrder)
 			break
+		} else {
+			if errProcOrder == io.EOF { // End of stream. Обнаружение конца потока.
+				break
+			}
+			log.Println("Combined shipment : ", combinedShipment.Status, combinedShipment.OrdersList)
 		}
-		log.Println("Combined shipment : ", combinedShipment.Status, combinedShipment.OrdersList)
 	}
-	<-c
+	//c <- true // break
+	<-c // loop
 }
 
 // Provides OAuth2 connection token

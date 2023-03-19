@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"io"
 	"log"
 
@@ -21,11 +22,19 @@ func (s *mserver) ProcessOrders(stream pb.OrderManagement_ProcessOrdersServer) e
 	batchMarker := 1
 	var combinedShipmentMap = make(map[string]pb.CombinedShipment)
 	for {
+		// Checks whether current context is cancelled by the client
+		// Сервер проверяет, отменен ли текущий контекст клиентом
+		if stream.Context().Err() == context.Canceled {
+			log.Printf("Context Cacelled for this stream: -> %s", stream.Context().Err())
+			log.Printf("Stopped processing any more order of this stream!")
+			return stream.Context().Err()
+		}
+
 		orderId, err := stream.Recv() // Reads IDs. Читаем ID заказов из входящего потока
 		log.Printf("Reading Proc order : %s", orderId)
+
 		if err == io.EOF { // Reads IDs to EOF. Продолжаем читать, пока не обнаружим конец потока
-			// Client has sent all the messages
-			// Send remaining shipments
+			// Client has sent all the messages. Send remaining shipments
 			log.Printf("EOF : %s", orderId)
 			for _, shipment := range combinedShipmentMap {
 				// If EOF sends all data of groups
