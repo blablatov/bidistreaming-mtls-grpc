@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"log"
 	"path/filepath"
+	"sync"
 	"time"
 
 	pb "github.com/blablatov/bidistream-mtls-grpc/bs-mtls-proto"
@@ -92,6 +93,7 @@ func main() {
 	// Finding of Duration. Тестированием определить оптимальное значение для крайнего срока кпд
 	clientDeadline := time.Now().Add(time.Duration(600 * time.Millisecond))
 	ctx, cancel := context.WithDeadline(context.Background(), clientDeadline)
+
 	defer cancel()
 
 	// Process Order : Bi-distreaming scenario
@@ -100,6 +102,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("%v.ProcessOrders(_) = _, %v", client, err)
 	}
+
 	// Sends IDs. Отправляем сообщения с ID сервису.
 	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "102"}); err != nil {
 		log.Fatalf("%v.Send(%v) = %v", client, "102", err)
@@ -119,6 +122,10 @@ func main() {
 
 	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "106"}); err != nil {
 		log.Fatalf("%v.Send(%v) = %v", client, "106", err)
+	}
+
+	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "-1"}); err != nil {
+		log.Fatalf("%v.Send(%v) = %v", client, "-1", err)
 	}
 
 	// Signal about close stream of client
@@ -144,8 +151,19 @@ func asncClientBidirectionalRPC(streamProcOrder pb.OrderManagement_ProcessOrders
 		// Read messages on side of client
 		// Читаем сообщения сервиса на клиентской стороне
 		combinedShipment, errProcOrder := streamProcOrder.Recv()
+
 		if errProcOrder != nil {
 			log.Printf("Error Receiving messages: %v", errProcOrder)
+
+			cherr := make(chan bool, 1)
+			var wg sync.WaitGroup // Synchronization of goroutines. Счетчик горутин.
+			wg.Add(1)
+			go modelErrClient(errProcOrder, streamProcOrder, cherr, &wg)
+			go func() {
+				wg.Wait() // Waiting of counter. Ожидание счетчика.
+				close(cherr)
+			}()
+
 			break
 		} else {
 			if errProcOrder == io.EOF { // End of stream. Обнаружение конца потока.
@@ -178,7 +196,6 @@ func clientStreamInterceptor(ctx context.Context, desc *grpc.StreamDesc, cc *grp
 	if err != nil {
 		return nil, err
 	}
-
 	// Creating wrapper around Client Stream interface, with intercept and go back to app
 	// Создание обертки вокруг интерфейса ClientStream, с перехватом и возвращением приложению
 	return newWrappedStream(s), nil
