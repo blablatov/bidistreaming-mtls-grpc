@@ -2,10 +2,15 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log"
 
+	"google.golang.org/grpc/codes"
+
 	pb "github.com/blablatov/bidistream-mtls-grpc/bs-mtls-proto"
+	epb "google.golang.org/genproto/googleapis/rpc/errdetails"
+	"google.golang.org/grpc/status"
 )
 
 var orderMap = make(map[string]pb.Order)
@@ -30,9 +35,28 @@ func (s *mserver) ProcessOrders(stream pb.OrderManagement_ProcessOrdersServer) e
 			return stream.Context().Err()
 		}
 
+		// Err ID
 		orderId, err := stream.Recv() // Reads IDs. Читаем ID заказов из входящего потока
 		log.Printf("Reading Proc order : %s", orderId)
 
+		if orderId.String() == `value:"-1"` {
+			log.Printf("Order ID is invalid! -> Received Order ID %s", orderId)
+
+			errorStatus := status.New(codes.InvalidArgument, "Invalid information received")
+			ds, err := errorStatus.WithDetails(
+				&epb.BadRequest_FieldViolation{
+					Field:       "ID",
+					Description: fmt.Sprintf("Order ID received is not valid %s : %s", orderId, orderId.Value),
+				},
+			)
+			if err == nil {
+				return errorStatus.Err()
+			}
+
+			return ds.Err()
+		}
+
+		// Err EOF
 		if err == io.EOF { // Reads IDs to EOF. Продолжаем читать, пока не обнаружим конец потока
 			// Client has sent all the messages. Send remaining shipments
 			log.Printf("EOF : %s", orderId)

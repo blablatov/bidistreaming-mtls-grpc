@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"log"
 	"path/filepath"
-	"sync"
 	"time"
 
 	pb "github.com/blablatov/bidistream-mtls-grpc/bs-mtls-proto"
@@ -154,16 +153,6 @@ func asncClientBidirectionalRPC(streamProcOrder pb.OrderManagement_ProcessOrders
 
 		if errProcOrder != nil {
 			log.Printf("Error Receiving messages: %v", errProcOrder)
-
-			cherr := make(chan bool, 1)
-			var wg sync.WaitGroup // Synchronization of goroutines. Счетчик горутин.
-			wg.Add(1)
-			go modelErrClient(errProcOrder, streamProcOrder, cherr, &wg)
-			go func() {
-				wg.Wait() // Waiting of counter. Ожидание счетчика.
-				close(cherr)
-			}()
-
 			break
 		} else {
 			if errProcOrder == io.EOF { // End of stream. Обнаружение конца потока.

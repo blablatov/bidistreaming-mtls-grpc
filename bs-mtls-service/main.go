@@ -110,6 +110,7 @@ func initSampleData() {
 	orderMap["104"] = pb.Order{Id: "104", Items: []string{"Google Home Mini", "Google Nest Hub"}, Destination: "Mountain View, CA", Price: 400.00}
 	orderMap["105"] = pb.Order{Id: "105", Items: []string{"Amazon Echo"}, Destination: "San Jose, CA", Price: 30.00}
 	orderMap["106"] = pb.Order{Id: "106", Items: []string{"Ozon Echo", "Apple iPhone XS"}, Destination: "Mountain View, CA", Price: 300.00}
+	orderMap["106"] = pb.Order{Id: "-1", Items: []string{"ID Err", "Aguarius not iPhone XZ"}, Destination: "Mount RU, CA fuck", Price: 300.00}
 }
 
 // Validates the authorization. Валидация токена
