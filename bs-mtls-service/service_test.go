@@ -89,6 +89,10 @@ func TestServer_ProcessOrders(t *testing.T) {
 	}
 
 	// Отправляем сообщения сервису.
+	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "101"}); err != nil {
+		log.Fatalf("%v.Send(%v) = %v", client, "101", err)
+	}
+
 	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "102"}); err != nil {
 		log.Fatalf("%v.Send(%v) = %v", client, "102", err)
 	}
@@ -105,10 +109,6 @@ func TestServer_ProcessOrders(t *testing.T) {
 	// Вызываем функцию с помощью горутин, распараллеливаем чтение сообщений, возвращаемых сервисом
 	go asncClientBidirectionalRPC(streamProcOrder, channel)
 	time.Sleep(time.Millisecond * 1000) // Имитируем задержку при отправке сервису сообщений. Wait time
-
-	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "101"}); err != nil {
-		log.Fatalf("%v.Send(%v) = %v", client, "101", err)
-	}
 
 	// Сигнализируем о завершении клиентского потока (с ID заказов)
 	// Signal about close stream of client
@@ -142,6 +142,10 @@ func TestServer_ProcessOrdersBufConn(t *testing.T) {
 	}
 
 	// Отправляем сообщения сервису.
+	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "101"}); err != nil {
+		log.Fatalf("%v.Send(%v) = %v", client, "101", err)
+	}
+
 	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "102"}); err != nil {
 		log.Fatalf("%v.Send(%v) = %v", client, "102", err)
 	}
@@ -158,10 +162,6 @@ func TestServer_ProcessOrdersBufConn(t *testing.T) {
 	// Вызываем функцию с помощью горутин, распараллеливаем чтение сообщений, возвращаемых сервисом
 	go asncClientBidirectionalRPC(streamProcOrder, channel)
 	time.Sleep(time.Millisecond * 1000) // Имитируем задержку при отправке сервису сообщений. Wait time
-
-	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "101"}); err != nil {
-		log.Fatalf("%v.Send(%v) = %v", client, "101", err)
-	}
 
 	// Сигнализируем о завершении клиентского потока (с ID заказов)
 	// Signal about close stream of client

@@ -86,8 +86,6 @@ func main() {
 	// Передаем соединение и создаем заглушку.
 	// Ее экземпляр содержит все удаленные методы, которые можно вызвать на сервере
 	client := pb.NewOrderManagementClient(conn)
-	//ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)//err context deadline
-	//ctx, cancel := context.WithCancel(context.Background())
 
 	// Finding of Duration. Тестированием определить оптимальное значение для крайнего срока кпд
 	clientDeadline := time.Now().Add(time.Duration(600 * time.Millisecond))
@@ -103,6 +101,10 @@ func main() {
 	}
 
 	// Sends IDs. Отправляем сообщения с ID сервису.
+	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "101"}); err != nil {
+		log.Fatalf("%v.Send(%v) = %v", client, "101", err)
+	}
+
 	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "102"}); err != nil {
 		log.Fatalf("%v.Send(%v) = %v", client, "102", err)
 	}

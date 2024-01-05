@@ -69,7 +69,10 @@ func TestClient_ProcessOrders(t *testing.T) {
 
 	client := pb.NewOrderManagementClient(conn)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	// Finding of Duration. Тестированием определить оптимальное значение для крайнего срока кпд
+	clientDeadline := time.Now().Add(time.Duration(600 * time.Millisecond))
+	ctx, cancel := context.WithDeadline(context.Background(), clientDeadline)
+
 	defer cancel()
 
 	// Process Order : Bi-distreaming scenario
@@ -78,7 +81,12 @@ func TestClient_ProcessOrders(t *testing.T) {
 	if err != nil {
 		log.Fatalf("%v.ProcessOrders(_) = _, %v", client, err)
 	}
+
 	// Отправляем сообщения сервису.
+	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "101"}); err != nil {
+		log.Fatalf("%v.Send(%v) = %v", client, "101", err)
+	}
+
 	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "102"}); err != nil {
 		log.Fatalf("%v.Send(%v) = %v", client, "102", err)
 	}
@@ -91,27 +99,36 @@ func TestClient_ProcessOrders(t *testing.T) {
 		log.Fatalf("%v.Send(%v) = %v", client, "104", err)
 	}
 
-	channel := make(chan int) // Создаем канал для горутин (create chanel for goroutines)
+	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "105"}); err != nil {
+		log.Fatalf("%v.Send(%v) = %v", client, "105", err)
+	}
+
+	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "106"}); err != nil {
+		log.Fatalf("%v.Send(%v) = %v", client, "106", err)
+	}
+
+	channel := make(chan bool) // Создаем канал для горутин (create chanel for goroutines)
 	// Вызываем функцию с помощью горутин, распараллеливаем чтение сообщений, возвращаемых сервисом
 	go asncClientBidirectionalRPC(streamProcOrder, channel)
 	time.Sleep(time.Millisecond * 1000) // Имитируем задержку при отправке сервису сообщений. Wait time
 
-	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "101"}); err != nil {
-		log.Fatalf("%v.Send(%v) = %v", client, "101", err)
-	}
+	// if err := streamProcOrder.Send(&wrappers.StringValue{Value: "101"}); err != nil {
+	// 	log.Fatalf("%v.Send(%v) = %v", client, "101", err)
+	// }
 
 	// Сигнализируем о завершении клиентского потока (с ID заказов)
 	// Signal about close stream of client
 	if err := streamProcOrder.CloseSend(); err != nil {
 		log.Fatal(err)
 	}
-	channel <- 1
+
+	channel <- true
 }
 
 // Тестирование производительности в цикле за указанное колличество итераций
 func BenchmarkTestClient_ProcessOrders(b *testing.B) {
 	b.ReportAllocs()
-	for i := 0; i < 25; i++ {
+	for i := 0; i < 250; i++ {
 		tokau := oauth.NewOauthAccess(fetchToken())
 
 		// Load the client certificates from disk
@@ -163,7 +180,12 @@ func BenchmarkTestClient_ProcessOrders(b *testing.B) {
 		if err != nil {
 			log.Fatalf("%v.ProcessOrders(_) = _, %v", client, err)
 		}
+
 		// Отправляем сообщения сервису.
+		if err := streamProcOrder.Send(&wrappers.StringValue{Value: "101"}); err != nil {
+			log.Fatalf("%v.Send(%v) = %v", client, "101", err)
+		}
+
 		if err := streamProcOrder.Send(&wrappers.StringValue{Value: "102"}); err != nil {
 			log.Fatalf("%v.Send(%v) = %v", client, "102", err)
 		}
@@ -176,7 +198,15 @@ func BenchmarkTestClient_ProcessOrders(b *testing.B) {
 			log.Fatalf("%v.Send(%v) = %v", client, "104", err)
 		}
 
-		channel := make(chan int) // Создаем канал для горутин (create chanel for goroutines)
+		if err := streamProcOrder.Send(&wrappers.StringValue{Value: "105"}); err != nil {
+			log.Fatalf("%v.Send(%v) = %v", client, "105", err)
+		}
+
+		if err := streamProcOrder.Send(&wrappers.StringValue{Value: "106"}); err != nil {
+			log.Fatalf("%v.Send(%v) = %v", client, "106", err)
+		}
+
+		channel := make(chan bool) // Создаем канал для горутин (create chanel for goroutines)
 		// Вызываем функцию с помощью горутин, распараллеливаем чтение сообщений, возвращаемых сервисом
 		go asncClientBidirectionalRPC(streamProcOrder, channel)
 		time.Sleep(time.Millisecond * 1000) // Имитируем задержку при отправке сервису сообщений. Wait time
@@ -190,6 +220,6 @@ func BenchmarkTestClient_ProcessOrders(b *testing.B) {
 		if err := streamProcOrder.CloseSend(); err != nil {
 			log.Fatal(err)
 		}
-		channel <- 1
+		channel <- true
 	}
 }
