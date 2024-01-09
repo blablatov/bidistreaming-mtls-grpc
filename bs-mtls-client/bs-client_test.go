@@ -83,8 +83,8 @@ func TestClient_ProcessOrders(t *testing.T) {
 	}
 
 	// Отправляем сообщения сервису.
-	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "101"}); err != nil {
-		log.Fatalf("%v.Send(%v) = %v", client, "101", err)
+	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "10"}); err != nil {
+		log.Fatalf("%v.Send(%v) = %v", client, "10", err)
 	}
 
 	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "102"}); err != nil {
@@ -107,14 +107,14 @@ func TestClient_ProcessOrders(t *testing.T) {
 		log.Fatalf("%v.Send(%v) = %v", client, "106", err)
 	}
 
+	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "101"}); err != nil {
+		log.Fatalf("%v.Send(%v) = %v", client, "101", err)
+	}
+
 	channel := make(chan bool) // Создаем канал для горутин (create chanel for goroutines)
 	// Вызываем функцию с помощью горутин, распараллеливаем чтение сообщений, возвращаемых сервисом
 	go asncClientBidirectionalRPC(streamProcOrder, channel)
-	time.Sleep(time.Millisecond * 1000) // Имитируем задержку при отправке сервису сообщений. Wait time
-
-	// if err := streamProcOrder.Send(&wrappers.StringValue{Value: "101"}); err != nil {
-	// 	log.Fatalf("%v.Send(%v) = %v", client, "101", err)
-	// }
+	time.Sleep(time.Millisecond * 100) // Имитируем задержку при отправке сервису сообщений. Wait time
 
 	// Сигнализируем о завершении клиентского потока (с ID заказов)
 	// Signal about close stream of client
@@ -182,8 +182,8 @@ func BenchmarkTestClient_ProcessOrders(b *testing.B) {
 		}
 
 		// Отправляем сообщения сервису.
-		if err := streamProcOrder.Send(&wrappers.StringValue{Value: "101"}); err != nil {
-			log.Fatalf("%v.Send(%v) = %v", client, "101", err)
+		if err := streamProcOrder.Send(&wrappers.StringValue{Value: "10"}); err != nil {
+			log.Fatalf("%v.Send(%v) = %v", client, "10", err)
 		}
 
 		if err := streamProcOrder.Send(&wrappers.StringValue{Value: "102"}); err != nil {
@@ -206,14 +206,14 @@ func BenchmarkTestClient_ProcessOrders(b *testing.B) {
 			log.Fatalf("%v.Send(%v) = %v", client, "106", err)
 		}
 
-		channel := make(chan bool) // Создаем канал для горутин (create chanel for goroutines)
-		// Вызываем функцию с помощью горутин, распараллеливаем чтение сообщений, возвращаемых сервисом
-		go asncClientBidirectionalRPC(streamProcOrder, channel)
-		time.Sleep(time.Millisecond * 1000) // Имитируем задержку при отправке сервису сообщений. Wait time
-
 		if err := streamProcOrder.Send(&wrappers.StringValue{Value: "101"}); err != nil {
 			log.Fatalf("%v.Send(%v) = %v", client, "101", err)
 		}
+
+		channel := make(chan bool) // Создаем канал для горутин (create chanel for goroutines)
+		// Вызываем функцию с помощью горутин, распараллеливаем чтение сообщений, возвращаемых сервисом
+		go asncClientBidirectionalRPC(streamProcOrder, channel)
+		time.Sleep(time.Millisecond * 100) // Имитируем задержку при отправке сервису сообщений. Wait time
 
 		// Сигнализируем о завершении клиентского потока (с ID заказов)
 		// Signal about close stream of client

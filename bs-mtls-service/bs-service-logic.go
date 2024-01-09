@@ -51,16 +51,29 @@ func (s *mserver) ProcessOrders(stream pb.OrderManagement_ProcessOrdersServer) e
 			orderId, err := stream.Recv() // Reads IDs. Читаем ID заказов из входящего потока
 			log.Printf("Reading Proc order : %s", orderId)
 
-			for k, _ := range orderMap {
-				if k != orderId.Value {
-					log.Printf("Order ID is invalid! -> Received Order ID %s", orderId)
+			if orderId == nil {
+				return err
+			}
+
+			if k, ok := orderMap[orderId.Value]; !ok {
+				log.Printf("Order ID == 0 is invalid! -> Received Order ID %v", k)
+				errorStatus := status.New(codes.InvalidArgument, "Order ID received is not found - Invalid information")
+				ds, err := errorStatus.WithDetails(
+					&epb.BadRequest_FieldViolation{
+						Field:       "ID",
+						Description: fmt.Sprintf("Order ID received is not found %s : %s", orderId, orderId.Value),
+					},
+				)
+				if err == nil {
+					return errorStatus.Err()
 				}
+				return ds.Err()
 			}
 
 			if orderId.String() == `value:"-1"` {
 				log.Printf("Order ID is invalid! -> Received Order ID %s", orderId)
 
-				errorStatus := status.New(codes.InvalidArgument, "Invalid information received")
+				errorStatus := status.New(codes.InvalidArgument, "Order ID received is not valid  - Invalid information")
 				ds, err := errorStatus.WithDetails(
 					&epb.BadRequest_FieldViolation{
 						Field:       "ID",
@@ -70,7 +83,6 @@ func (s *mserver) ProcessOrders(stream pb.OrderManagement_ProcessOrdersServer) e
 				if err == nil {
 					return errorStatus.Err()
 				}
-
 				return ds.Err()
 			}
 
@@ -91,6 +103,7 @@ func (s *mserver) ProcessOrders(stream pb.OrderManagement_ProcessOrdersServer) e
 				log.Println(err)
 				return err
 			}
+
 			// Logic makes group of orders. Логика для объединения заказов в партии на основе адреса доставки
 			destination := orderMap[orderId.GetValue()].Destination
 			shipment, found := combinedShipmentMap[destination]

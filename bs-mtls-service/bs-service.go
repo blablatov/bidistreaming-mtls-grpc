@@ -111,6 +111,12 @@ func initSampleData() {
 	orderMap["105"] = pb.Order{Id: "105", Items: []string{"Amazon Echo"}, Destination: "San Jose, CA", Price: 30.00}
 	orderMap["106"] = pb.Order{Id: "106", Items: []string{"Ozon Echo", "Apple iPhone XS"}, Destination: "Mountain View, CA", Price: 300.00}
 	orderMap["-1"] = pb.Order{Id: "-1", Items: []string{"ID Err", "Aguarius not iPhone XZ"}, Destination: "Mount RU, CA fuck", Price: 300.00}
+
+	orderMap["10"] = pb.Order{Id: "10", Items: []string{"Dallas", "Texas Instruments"}, Destination: "Texas, CA", Price: 500.00}
+	orderMap["11"] = pb.Order{Id: "11", Items: []string{"Sensor_01"}, Destination: "Moscow", Price: 400.00}
+	orderMap["12"] = pb.Order{Id: "12", Items: []string{"Message_01", "Yandex Cloud"}, Destination: "Moscow, ru-central1-a", Price: 1.00}
+	orderMap["13"] = pb.Order{Id: "13", Items: []string{"Stream_1"}, Destination: "Moscow, Yandex Cloud", Price: 10.00}
+	orderMap["14"] = pb.Order{Id: "14", Items: []string{"Message_02", "Yandex Cloud"}, Destination: "Moscow, ru-central1-b", Price: 1.00}
 }
 
 // Validates the authorization. Валидация токена

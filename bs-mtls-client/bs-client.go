@@ -101,8 +101,8 @@ func main() {
 	}
 
 	// Sends IDs. Отправляем сообщения с ID сервису.
-	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "101"}); err != nil {
-		log.Fatalf("%v.Send(%v) = %v", client, "101", err)
+	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "10"}); err != nil {
+		log.Fatalf("%v.Send(%v) = %v", client, "10", err)
 	}
 
 	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "102"}); err != nil {
@@ -127,6 +127,10 @@ func main() {
 
 	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "-1"}); err != nil {
 		log.Fatalf("%v.Send(%v) = %v", client, "-1", err)
+	}
+
+	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "101"}); err != nil {
+		log.Fatalf("%v.Send(%v) = %v", client, "101", err)
 	}
 
 	// Signal about close stream of client
