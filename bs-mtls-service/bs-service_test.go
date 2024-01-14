@@ -89,8 +89,8 @@ func TestServer_ProcessOrders(t *testing.T) {
 	}
 
 	// Отправляем сообщения сервису.
-	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "101"}); err != nil {
-		log.Fatalf("%v.Send(%v) = %v", client, "101", err)
+	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "104"}); err != nil {
+		log.Fatalf("%v.Send(%v) = %v", client, "104", err)
 	}
 
 	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "102"}); err != nil {
@@ -101,8 +101,8 @@ func TestServer_ProcessOrders(t *testing.T) {
 		log.Fatalf("%v.Send(%v) = %v", client, "103", err)
 	}
 
-	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "104"}); err != nil {
-		log.Fatalf("%v.Send(%v) = %v", client, "104", err)
+	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "101"}); err != nil {
+		log.Fatalf("%v.Send(%v) = %v", client, "101", err)
 	}
 
 	channel := make(chan int) // Создаем канал для горутин (create chanel for goroutines)
@@ -142,8 +142,8 @@ func TestServer_ProcessOrdersBufConn(t *testing.T) {
 	}
 
 	// Отправляем сообщения сервису.
-	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "101"}); err != nil {
-		log.Fatalf("%v.Send(%v) = %v", client, "101", err)
+	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "104"}); err != nil {
+		log.Fatalf("%v.Send(%v) = %v", client, "104", err)
 	}
 
 	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "102"}); err != nil {
@@ -154,8 +154,8 @@ func TestServer_ProcessOrdersBufConn(t *testing.T) {
 		log.Fatalf("%v.Send(%v) = %v", client, "103", err)
 	}
 
-	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "104"}); err != nil {
-		log.Fatalf("%v.Send(%v) = %v", client, "104", err)
+	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "101"}); err != nil {
+		log.Fatalf("%v.Send(%v) = %v", client, "101", err)
 	}
 
 	channel := make(chan int) // Создаем канал для горутин (create chanel for goroutines)
@@ -209,14 +209,14 @@ func BenchmarkServer_ProcessOrdersBufConn(b *testing.B) {
 			log.Fatalf("%v.Send(%v) = %v", client, "104", err)
 		}
 
+		if err := streamProcOrder.Send(&wrappers.StringValue{Value: "101"}); err != nil {
+			log.Fatalf("%v.Send(%v) = %v", client, "101", err)
+		}
+
 		channel := make(chan int) // Создаем канал для горутин (create chanel for goroutines)
 		// Вызываем функцию с помощью горутин, распараллеливаем чтение сообщений, возвращаемых сервисом
 		go asncClientBidirectionalRPC(streamProcOrder, channel)
 		time.Sleep(time.Millisecond * 1000) // Имитируем задержку при отправке сервису сообщений. Wait time
-
-		if err := streamProcOrder.Send(&wrappers.StringValue{Value: "101"}); err != nil {
-			log.Fatalf("%v.Send(%v) = %v", client, "101", err)
-		}
 
 		// Сигнализируем о завершении клиентского потока (с ID заказов)
 		// Signal about close stream of client

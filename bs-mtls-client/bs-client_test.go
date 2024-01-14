@@ -114,7 +114,7 @@ func TestClient_ProcessOrders(t *testing.T) {
 	channel := make(chan bool) // Создаем канал для горутин (create chanel for goroutines)
 	// Вызываем функцию с помощью горутин, распараллеливаем чтение сообщений, возвращаемых сервисом
 	go asncClientBidirectionalRPC(streamProcOrder, channel)
-	time.Sleep(time.Millisecond * 100) // Имитируем задержку при отправке сервису сообщений. Wait time
+	time.Sleep(time.Millisecond * 1000) // Имитируем задержку при отправке сервису сообщений. Wait time
 
 	// Сигнализируем о завершении клиентского потока (с ID заказов)
 	// Signal about close stream of client
@@ -123,6 +123,7 @@ func TestClient_ProcessOrders(t *testing.T) {
 	}
 
 	channel <- true
+	//<-channel
 }
 
 // Тестирование производительности в цикле за указанное колличество итераций
@@ -194,8 +195,8 @@ func BenchmarkTestClient_ProcessOrders(b *testing.B) {
 			log.Fatalf("%v.Send(%v) = %v", client, "103", err)
 		}
 
-		if err := streamProcOrder.Send(&wrappers.StringValue{Value: "104"}); err != nil {
-			log.Fatalf("%v.Send(%v) = %v", client, "104", err)
+		if err := streamProcOrder.Send(&wrappers.StringValue{Value: "101"}); err != nil {
+			log.Fatalf("%v.Send(%v) = %v", client, "101", err)
 		}
 
 		if err := streamProcOrder.Send(&wrappers.StringValue{Value: "105"}); err != nil {
@@ -206,14 +207,14 @@ func BenchmarkTestClient_ProcessOrders(b *testing.B) {
 			log.Fatalf("%v.Send(%v) = %v", client, "106", err)
 		}
 
-		if err := streamProcOrder.Send(&wrappers.StringValue{Value: "101"}); err != nil {
-			log.Fatalf("%v.Send(%v) = %v", client, "101", err)
+		if err := streamProcOrder.Send(&wrappers.StringValue{Value: "104"}); err != nil {
+			log.Fatalf("%v.Send(%v) = %v", client, "104", err)
 		}
 
 		channel := make(chan bool) // Создаем канал для горутин (create chanel for goroutines)
 		// Вызываем функцию с помощью горутин, распараллеливаем чтение сообщений, возвращаемых сервисом
 		go asncClientBidirectionalRPC(streamProcOrder, channel)
-		time.Sleep(time.Millisecond * 100) // Имитируем задержку при отправке сервису сообщений. Wait time
+		time.Sleep(time.Millisecond * 500) // Имитируем задержку при отправке сервису сообщений. Wait time
 
 		// Сигнализируем о завершении клиентского потока (с ID заказов)
 		// Signal about close stream of client

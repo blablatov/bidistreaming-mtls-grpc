@@ -56,7 +56,7 @@ func (s *mserver) ProcessOrders(stream pb.OrderManagement_ProcessOrdersServer) e
 			}
 
 			if k, ok := orderMap[orderId.Value]; !ok {
-				log.Printf("Order ID == 0 is invalid! -> Received Order ID %v", k)
+				log.Printf("Order ID is invalid! -> Received Order ID %v", k)
 				errorStatus := status.New(codes.InvalidArgument, "Order ID received is not found - Invalid information")
 				ds, err := errorStatus.WithDetails(
 					&epb.BadRequest_FieldViolation{

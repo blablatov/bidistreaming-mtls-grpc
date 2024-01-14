@@ -4,19 +4,26 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"io"
+
+	//"io"
 	"io/ioutil"
 	"log"
 	"path/filepath"
 	"time"
 
+	"google.golang.org/grpc/codes"
+
+	//"google.golang.org/genproto/googleapis/rpc/status"
+
 	pb "github.com/blablatov/bidistream-mtls-grpc/bs-mtls-proto"
 	"github.com/golang/protobuf/ptypes/wrappers"
 	"golang.org/x/oauth2"
+	epb "google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/oauth"
 	"google.golang.org/grpc/encoding/gzip"
+	"google.golang.org/grpc/status"
 )
 
 var (
@@ -88,8 +95,9 @@ func main() {
 	client := pb.NewOrderManagementClient(conn)
 
 	// Finding of Duration. Тестированием определить оптимальное значение для крайнего срока кпд
-	clientDeadline := time.Now().Add(time.Duration(600 * time.Millisecond))
+	clientDeadline := time.Now().Add(time.Duration(15000 * time.Millisecond))
 	ctx, cancel := context.WithDeadline(context.Background(), clientDeadline)
+	//ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 
 	defer cancel()
 
@@ -99,7 +107,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("%v.ProcessOrders(_) = _, %v", client, err)
 	}
-
+	//for i := 0; i < 10; i++ {
 	// Sends IDs. Отправляем сообщения с ID сервису.
 	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "10"}); err != nil {
 		log.Fatalf("%v.Send(%v) = %v", client, "10", err)
@@ -109,16 +117,20 @@ func main() {
 		log.Fatalf("%v.Send(%v) = %v", client, "102", err)
 	}
 
-	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "103"}); err != nil {
+	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "104"}); err != nil {
 		log.Fatalf("%v.Send(%v) = %v", client, "103", err)
 	}
 
-	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "104"}); err != nil {
-		log.Fatalf("%v.Send(%v) = %v", client, "104", err)
+	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "101"}); err != nil {
+		log.Printf("%v.Send(%v) = %v", client, "101", err)
 	}
 
 	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "105"}); err != nil {
 		log.Fatalf("%v.Send(%v) = %v", client, "105", err)
+	}
+
+	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "103"}); err != nil {
+		log.Fatalf("%v.Send(%v) = %v", client, "103", err)
 	}
 
 	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "106"}); err != nil {
@@ -129,26 +141,24 @@ func main() {
 		log.Fatalf("%v.Send(%v) = %v", client, "-1", err)
 	}
 
-	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "101"}); err != nil {
-		log.Fatalf("%v.Send(%v) = %v", client, "101", err)
-	}
-
-	// Signal about close stream of client
-	// Сигнализируем о завершении клиентского потока (с ID заказов)
-	if err := streamProcOrder.CloseSend(); err != nil {
-		log.Fatal(err)
-	}
-
 	channel := make(chan bool, 1) // Создаем канал для горутин (create chanel for goroutines)
 	// Вызываем функцию с помощью горутин, распараллеливаем чтение сообщений, возвращаемых сервисом
 	go asncClientBidirectionalRPC(streamProcOrder, channel)
 	time.Sleep(time.Millisecond * 1000) //  Wait time. Имитируем задержку при отправке сервису сообщений.
 
-	// Cancelling the RPC. Отмена удаленного вызова gRPC на клиентской стороне
-	cancel()
-	log.Printf("RPC Status : %s", ctx.Err()) // Status of context. Состояние текущего контекста
+	// Сигнализируем о завершении клиентского потока (с ID заказов)
+	// Signal about close stream of client
+	if err := streamProcOrder.CloseSend(); err != nil {
+		log.Fatal(err)
+	}
 
+	// // // Cancelling the RPC. Отмена удаленного вызова gRPC на клиентской стороне
+	// cancel()
+	log.Printf("RPC Status : %v", ctx.Err()) // Status of context. Состояние текущего контекста
+
+	//channel <- true // for test
 	<-channel
+	//}
 }
 
 func asncClientBidirectionalRPC(streamProcOrder pb.OrderManagement_ProcessOrdersClient, c chan bool) {
@@ -158,14 +168,44 @@ func asncClientBidirectionalRPC(streamProcOrder pb.OrderManagement_ProcessOrders
 		combinedShipment, errProcOrder := streamProcOrder.Recv()
 
 		if errProcOrder != nil {
-			log.Printf("Error Receiving messages: %v", errProcOrder)
-			break
-		} else {
-			if errProcOrder == io.EOF { // End of stream. Обнаружение конца потока.
-				break
+			errCode := status.Code(errProcOrder)
+			if errCode == codes.InvalidArgument {
+				log.Printf("Invalid argument error : %s", errCode)
+				errStatus := status.Convert(errProcOrder)
+				for _, ds := range errStatus.Details() {
+					switch info := ds.(type) {
+					case *epb.BadRequest_FieldViolation:
+						log.Printf("Request field invalid: %s", info)
+					default:
+						log.Printf("Unexpected error type: %s", info)
+					}
+				}
+			} else {
+				log.Printf("Unhandled error: %s", errCode)
 			}
+		} else {
 			log.Println("Combined shipment : ", combinedShipment.Status, combinedShipment.OrdersList)
 		}
+
+		// if errProcOrder != nil {
+		// 	log.Printf("Error Receiving messages: %v", errProcOrder)
+		// 	//break //!!!! TODO - выход не нужен, после отправки ошибки, клиент продолжает запросы
+		// 	switch errProcOrder.Error() {
+		// 	case "Order ID received is not found - Invalid information":
+		// 		<-c
+		// 		break
+		// 	case "Order ID received is not valid - Invalid information":
+		// 		<-c
+		// 		break
+		// 	default:
+		// 		<-c
+		// 	}
+		// } else {
+		// 	if errProcOrder == io.EOF { // End of stream. Обнаружение конца потока.
+		// 		break
+		// 	}
+		// 	log.Println("Combined shipment : ", combinedShipment.Status, combinedShipment.OrdersList)
+		// }
 	}
 	//c <- true // break
 	<-c // loop
