@@ -1,6 +1,6 @@
 // This conventional test. Традиционный тест
-// Before his execute run grpc-server ./ds-mtls-service/ds-mtls-service.
-// Перед выполнением запустить сервер.
+// Before his execute run grpc-server ./bs-mtls-service/bs-mtls-service
+// Перед выполнением запустить grpc-сервер.
 
 package main
 
@@ -15,6 +15,7 @@ import (
 
 	pb "github.com/blablatov/bidistream-mtls-grpc/bs-mtls-proto"
 	"github.com/golang/protobuf/ptypes/wrappers"
+	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/oauth"
@@ -24,6 +25,9 @@ import (
 // Conventional test that starts a gRPC client test the service with RPC.
 // Традиционный тест, который запускает клиент для проверки удаленного метода сервиса.
 func TestClient_ProcessOrders(t *testing.T) {
+	log.SetPrefix("Client-test event: ")
+	log.SetFlags(log.Lshortfile)
+
 	tokau := oauth.NewOauthAccess(fetchToken())
 
 	// Load the client certificates from disk
@@ -70,7 +74,7 @@ func TestClient_ProcessOrders(t *testing.T) {
 	client := pb.NewOrderManagementClient(conn)
 
 	// Finding of Duration. Тестированием определить оптимальное значение для крайнего срока кпд
-	clientDeadline := time.Now().Add(time.Duration(600 * time.Millisecond))
+	clientDeadline := time.Now().Add(time.Duration(2000 * time.Millisecond))
 	ctx, cancel := context.WithDeadline(context.Background(), clientDeadline)
 
 	defer cancel()
@@ -82,39 +86,38 @@ func TestClient_ProcessOrders(t *testing.T) {
 		log.Fatalf("%v.ProcessOrders(_) = _, %v", client, err)
 	}
 
-	// Отправляем сообщения сервису.
-	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "10"}); err != nil {
-		log.Fatalf("%v.Send(%v) = %v", client, "10", err)
+	// IDs for test. Мапа с тестируемыми ID
+	mp := map[string]int{
+		"10":  10,
+		"102": 102,
+		"106": 106,
+		"104": 104,
+		"105": 105,
+		"11":  11,
+		"103": 103,
 	}
 
-	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "102"}); err != nil {
-		log.Fatalf("%v.Send(%v) = %v", client, "102", err)
+	for k, v := range mp {
+		if k != "" && v != 0 {
+			// Отправляем сообщения сервису
+			if err := streamProcOrder.Send(&wrappers.StringValue{Value: k}); err != nil {
+				log.Fatalf("%v.Send(%v) = %v", client, k, err)
+			}
+		} else {
+			log.Printf("ID not found(%s) = %b", k, v)
+		}
 	}
 
-	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "103"}); err != nil {
-		log.Fatalf("%v.Send(%v) = %v", client, "103", err)
-	}
+	chs := make(chan struct{}) // Создаем канал для горутин (create chanel for goroutines)
 
-	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "104"}); err != nil {
-		log.Fatalf("%v.Send(%v) = %v", client, "104", err)
-	}
-
-	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "105"}); err != nil {
-		log.Fatalf("%v.Send(%v) = %v", client, "105", err)
-	}
-
-	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "106"}); err != nil {
-		log.Fatalf("%v.Send(%v) = %v", client, "106", err)
-	}
-
-	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "101"}); err != nil {
-		log.Fatalf("%v.Send(%v) = %v", client, "101", err)
-	}
-
-	channel := make(chan bool) // Создаем канал для горутин (create chanel for goroutines)
 	// Вызываем функцию с помощью горутин, распараллеливаем чтение сообщений, возвращаемых сервисом
-	go asncClientBidirectionalRPC(streamProcOrder, channel)
-	time.Sleep(time.Millisecond * 1000) // Имитируем задержку при отправке сервису сообщений. Wait time
+	go func() {
+		asncClientBidirectionalRPC(streamProcOrder, chs)
+		chs <- struct{}{}
+		close(chs)
+	}()
+
+	time.Sleep(time.Millisecond * 500) // Имитируем задержку при отправке сервису сообщений. Wait time
 
 	// Сигнализируем о завершении клиентского потока (с ID заказов)
 	// Signal about close stream of client
@@ -122,8 +125,7 @@ func TestClient_ProcessOrders(t *testing.T) {
 		log.Fatal(err)
 	}
 
-	channel <- true
-	//<-channel
+	chs <- struct{}{}
 }
 
 // Тестирование производительности в цикле за указанное колличество итераций
@@ -182,38 +184,35 @@ func BenchmarkTestClient_ProcessOrders(b *testing.B) {
 			log.Fatalf("%v.ProcessOrders(_) = _, %v", client, err)
 		}
 
-		// Отправляем сообщения сервису.
-		if err := streamProcOrder.Send(&wrappers.StringValue{Value: "10"}); err != nil {
-			log.Fatalf("%v.Send(%v) = %v", client, "10", err)
+		// IDs for test. Мапа с тестируемыми ID
+		mp := map[string]int{
+			"101": 101,
+			"102": 102,
+			"106": 106,
+			"104": 104,
+			"105": 105,
+			"11":  11,
+			"103": 103,
 		}
 
-		if err := streamProcOrder.Send(&wrappers.StringValue{Value: "102"}); err != nil {
-			log.Fatalf("%v.Send(%v) = %v", client, "102", err)
+		for k, v := range mp {
+			if k != "" && v != 0 {
+				// Отправляем сообщения сервису
+				if err := streamProcOrder.Send(&wrappers.StringValue{Value: k}); err != nil {
+					log.Fatalf("%v.Send(%v) = %v", client, k, err)
+				}
+			} else {
+				log.Printf("ID not found(%s) = %b", k, v)
+			}
 		}
 
-		if err := streamProcOrder.Send(&wrappers.StringValue{Value: "103"}); err != nil {
-			log.Fatalf("%v.Send(%v) = %v", client, "103", err)
-		}
+		// if err := streamProcOrder.Send(&wrappers.StringValue{Value: "103"}); err != nil {
+		// 	log.Fatalf("%v.Send(%v) = %v", client, "103", err)
+		// }
 
-		if err := streamProcOrder.Send(&wrappers.StringValue{Value: "101"}); err != nil {
-			log.Fatalf("%v.Send(%v) = %v", client, "101", err)
-		}
-
-		if err := streamProcOrder.Send(&wrappers.StringValue{Value: "105"}); err != nil {
-			log.Fatalf("%v.Send(%v) = %v", client, "105", err)
-		}
-
-		if err := streamProcOrder.Send(&wrappers.StringValue{Value: "106"}); err != nil {
-			log.Fatalf("%v.Send(%v) = %v", client, "106", err)
-		}
-
-		if err := streamProcOrder.Send(&wrappers.StringValue{Value: "104"}); err != nil {
-			log.Fatalf("%v.Send(%v) = %v", client, "104", err)
-		}
-
-		channel := make(chan bool) // Создаем канал для горутин (create chanel for goroutines)
+		chs := make(chan struct{}) // Создаем канал для горутин (create chanel for goroutines)
 		// Вызываем функцию с помощью горутин, распараллеливаем чтение сообщений, возвращаемых сервисом
-		go asncClientBidirectionalRPC(streamProcOrder, channel)
+		go asncClientBidirectionalRPC(streamProcOrder, chs)
 		time.Sleep(time.Millisecond * 500) // Имитируем задержку при отправке сервису сообщений. Wait time
 
 		// Сигнализируем о завершении клиентского потока (с ID заказов)
@@ -221,6 +220,23 @@ func BenchmarkTestClient_ProcessOrders(b *testing.B) {
 		if err := streamProcOrder.CloseSend(); err != nil {
 			log.Fatal(err)
 		}
-		channel <- true
+
+		// Cancelling the RPC. Отмена удаленного вызова gRPC на клиентской стороне
+		cancel()
+		log.Printf("RPC Status : %v", ctx.Err()) // Status of context. Состояние текущего контекста
+
+		chs <- struct{}{}
 	}
+}
+
+// Provides OAuth2 connection token
+// Учетные данные для соединения. Предоставление токена OAuth2
+func TestFetchToken(t *testing.T) {
+	go func() {
+		fetchToken()
+		var tok oauth2.Token
+		if tok.AccessToken == "blablatok-tokblabla-blablatok" {
+			log.Println("Token true")
+		}
+	}()
 }

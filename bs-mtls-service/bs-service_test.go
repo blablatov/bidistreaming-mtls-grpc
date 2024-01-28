@@ -1,5 +1,7 @@
-// Testing remote functions without using network and real run test
-// Модульное тестирование бизнес-логики удаленных функций без использования сети и обычный тест
+// Testing remote functions without using network
+// Модульное тестирование бизнес-логики удаленных методов без передачи по сети.
+// С запуском стандартного gRPC-сервера поверх HTTP/2 на реальном порту.
+// Имитация запуска сервера с использованием буфера.
 
 package main
 
@@ -34,6 +36,7 @@ func initGRPCServerHTTP2() {
 	}
 	s := grpc.NewServer()
 	pb.RegisterOrderManagementServer(s, &mserver{})
+	initSampleData()
 	// Register reflection service on gRPC server.
 	reflection.Register(s)
 	go func() {
@@ -56,6 +59,7 @@ func initGRPCServerBuffConn() {
 	listener = bufconn.Listen(bufSize)
 	s := grpc.NewServer()
 	pb.RegisterOrderManagementServer(s, &mserver{})
+	initSampleData()
 	// Register reflection service on gRPC server.
 	reflection.Register(s)
 	go func() {
@@ -67,6 +71,8 @@ func initGRPCServerBuffConn() {
 
 // Conventional test that starts a gRPC server and client test the service with RPC
 func TestServer_ProcessOrders(t *testing.T) {
+	log.SetPrefix("Client-test event: ")
+	log.SetFlags(log.Lshortfile)
 	// Starting a conventional gRPC server runs on HTTP2
 	// Запускаем стандартный gRPC-сервер поверх HTTP/2
 	initGRPCServerHTTP2()
@@ -88,27 +94,29 @@ func TestServer_ProcessOrders(t *testing.T) {
 		log.Fatalf("%v.ProcessOrders(_) = _, %v", client, err)
 	}
 
-	// Отправляем сообщения сервису.
-	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "104"}); err != nil {
-		log.Fatalf("%v.Send(%v) = %v", client, "104", err)
+	// IDs for test. Мапа с тестируемыми ID
+	mp := map[string]int{
+		"105": 105,
+		"102": 102,
+		"103": 103,
+		"104": 106,
 	}
 
-	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "102"}); err != nil {
-		log.Fatalf("%v.Send(%v) = %v", client, "102", err)
-	}
-
-	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "103"}); err != nil {
-		log.Fatalf("%v.Send(%v) = %v", client, "103", err)
-	}
-
-	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "101"}); err != nil {
-		log.Fatalf("%v.Send(%v) = %v", client, "101", err)
+	for k, v := range mp {
+		if k != "" && v != 0 {
+			// Иммитируем отправку сообщений сервису.
+			if err := streamProcOrder.Send(&wrappers.StringValue{Value: k}); err != nil {
+				log.Fatalf("%v.Send(%v) = %v", client, v, err)
+			}
+		} else {
+			log.Printf("ID not found(%s) = %b", k, v)
+		}
 	}
 
 	channel := make(chan int) // Создаем канал для горутин (create chanel for goroutines)
 	// Вызываем функцию с помощью горутин, распараллеливаем чтение сообщений, возвращаемых сервисом
 	go asncClientBidirectionalRPC(streamProcOrder, channel)
-	time.Sleep(time.Millisecond * 1000) // Имитируем задержку при отправке сервису сообщений. Wait time
+	time.Sleep(time.Millisecond * 500) // Имитируем задержку при отправке сервису сообщений. Wait time
 
 	// Сигнализируем о завершении клиентского потока (с ID заказов)
 	// Signal about close stream of client
@@ -141,27 +149,29 @@ func TestServer_ProcessOrdersBufConn(t *testing.T) {
 		log.Fatalf("%v.ProcessOrders(_) = _, %v", client, err)
 	}
 
-	// Отправляем сообщения сервису.
-	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "104"}); err != nil {
-		log.Fatalf("%v.Send(%v) = %v", client, "104", err)
+	// IDs for test. Мапа с тестируемыми ID
+	mp := map[string]int{
+		"105": 105,
+		"102": 102,
+		"103": 103,
+		"104": 106,
 	}
 
-	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "102"}); err != nil {
-		log.Fatalf("%v.Send(%v) = %v", client, "102", err)
-	}
-
-	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "103"}); err != nil {
-		log.Fatalf("%v.Send(%v) = %v", client, "103", err)
-	}
-
-	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "101"}); err != nil {
-		log.Fatalf("%v.Send(%v) = %v", client, "101", err)
+	for k, v := range mp {
+		if k != "" && v != 0 {
+			// Иммитируем отправку сообщений сервису.
+			if err := streamProcOrder.Send(&wrappers.StringValue{Value: k}); err != nil {
+				log.Fatalf("%v.Send(%v) = %v", client, v, err)
+			}
+		} else {
+			log.Printf("ID not found(%s) = %b", k, v)
+		}
 	}
 
 	channel := make(chan int) // Создаем канал для горутин (create chanel for goroutines)
 	// Вызываем функцию с помощью горутин, распараллеливаем чтение сообщений, возвращаемых сервисом
 	go asncClientBidirectionalRPC(streamProcOrder, channel)
-	time.Sleep(time.Millisecond * 1000) // Имитируем задержку при отправке сервису сообщений. Wait time
+	time.Sleep(time.Millisecond * 500) // Имитируем задержку при отправке сервису сообщений. Wait time
 
 	// Сигнализируем о завершении клиентского потока (с ID заказов)
 	// Signal about close stream of client
@@ -196,21 +206,23 @@ func BenchmarkServer_ProcessOrdersBufConn(b *testing.B) {
 			log.Fatalf("%v.ProcessOrders(_) = _, %v", client, err)
 		}
 
-		// Отправляем сообщения сервису.
-		if err := streamProcOrder.Send(&wrappers.StringValue{Value: "102"}); err != nil {
-			log.Fatalf("%v.Send(%v) = %v", client, "102", err)
+		// IDs for test. Мапа с тестируемыми ID
+		mp := map[string]int{
+			"105": 105,
+			"102": 102,
+			"103": 103,
+			"104": 106,
 		}
 
-		if err := streamProcOrder.Send(&wrappers.StringValue{Value: "103"}); err != nil {
-			log.Fatalf("%v.Send(%v) = %v", client, "103", err)
-		}
-
-		if err := streamProcOrder.Send(&wrappers.StringValue{Value: "104"}); err != nil {
-			log.Fatalf("%v.Send(%v) = %v", client, "104", err)
-		}
-
-		if err := streamProcOrder.Send(&wrappers.StringValue{Value: "101"}); err != nil {
-			log.Fatalf("%v.Send(%v) = %v", client, "101", err)
+		for k, v := range mp {
+			if k != "" && v != 0 {
+				// Отправляем сообщения сервису.
+				if err := streamProcOrder.Send(&wrappers.StringValue{Value: k}); err != nil {
+					log.Fatalf("%v.Send(%v) = %v", client, v, err)
+				}
+			} else {
+				log.Printf("ID not found(%s) = %b", k, v)
+			}
 		}
 
 		channel := make(chan int) // Создаем канал для горутин (create chanel for goroutines)
@@ -232,10 +244,16 @@ func asncClientBidirectionalRPC(streamProcOrder pb.OrderManagement_ProcessOrders
 		// Читаем сообщения сервиса на клиентской стороне
 		// Read messages on side of client
 		combinedShipment, errProcOrder := streamProcOrder.Recv()
-		if errProcOrder == io.EOF { // Обнаружение конца потока. End of stream
+
+		if errProcOrder != nil {
+			log.Printf("Error Receiving messages: %v", errProcOrder)
 			break
+		} else {
+			if errProcOrder == io.EOF { // Обнаружение конца потока. End of stream
+				break
+			}
+			log.Println("Combined shipment : ", combinedShipment.OrdersList)
 		}
-		log.Println("Combined shipment : ", combinedShipment.OrdersList)
 	}
 	<-c
 }

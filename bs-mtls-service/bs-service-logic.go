@@ -1,3 +1,5 @@
+// Методы (логика) gRPC-сервиса
+
 package main
 
 import (
@@ -15,7 +17,7 @@ import (
 
 var orderMap = make(map[string]pb.Order)
 
-// mСервер используется для реализации order_management
+// mСервер реализует order_management
 type mserver struct {
 	orderMap map[string]*pb.Order
 }
@@ -86,7 +88,7 @@ func (s *mserver) ProcessOrders(stream pb.OrderManagement_ProcessOrdersServer) e
 				return ds.Err()
 			}
 
-			// Err EOF
+			// Checks to Err EOF
 			if err == io.EOF { // Reads IDs to EOF. Продолжаем читать, пока не обнаружим конец потока
 				// Client has sent all the messages. Send remaining shipments
 				log.Printf("EOF : %s", orderId)

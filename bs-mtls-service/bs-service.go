@@ -1,3 +1,6 @@
+// gRPC-сервис
+// go test -v bs-service_test.go
+
 package main
 
 import (
