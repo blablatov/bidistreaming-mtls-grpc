@@ -29,13 +29,6 @@ func (s *mserver) ProcessOrders(stream pb.OrderManagement_ProcessOrdersServer) e
 	batchMarker := 1
 	var combinedShipmentMap = make(map[string]pb.CombinedShipment)
 	for {
-		// Checks whether current context is cancelled by the client or Deadline was exceeded
-		// Сервер проверяет, отменен ли текущий контекст клиентом или превышен крайний срок
-		// if stream.Context().Err() == context.Canceled {
-		// 	log.Printf("Context Cacelled for this stream: -> %s", stream.Context().Err())
-		// 	log.Printf("Stopped processing any more order of this stream!")
-		// 	return stream.Context().Err()
-		// }
 
 		switch {
 		case stream.Context().Err() == context.Canceled:

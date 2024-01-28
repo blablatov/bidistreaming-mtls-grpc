@@ -1,5 +1,5 @@
 // gRPC-сервис
-// go test -v bs-service_test.go
+// go test bs-service_test.go
 
 package main
 
@@ -151,7 +151,7 @@ func ensureValidToken(ctx context.Context, req interface{},
 }
 
 // Stream wraps around the embedded grpc.Server Stream, and intercepts the RecvMsg and SendMsg method call
-// Обертка вокруг встроенного интерфейса grpc.ServerStream, перехватывает вызовы методов RecvMsg и SendMsg.
+// Обертка вокруг встроенного интерфейса grpc.ServerStream, перехватывает вызовы методов RecvMsg и SendMsg
 type wrappedStream struct {
 	grpc.ServerStream
 }

@@ -8,6 +8,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"testing"
@@ -22,8 +23,8 @@ import (
 	"google.golang.org/grpc/encoding/gzip"
 )
 
-// Conventional test that starts a gRPC client test the service with RPC.
-// Традиционный тест, который запускает клиент для проверки удаленного метода сервиса.
+// Conventional test that starts a gRPC client test the service with RPC
+// Традиционный тест, который запускает клиент для проверки удаленного метода сервиса
 func TestClient_ProcessOrders(t *testing.T) {
 	log.SetPrefix("Client-test event: ")
 	log.SetFlags(log.Lshortfile)
@@ -51,10 +52,10 @@ func TestClient_ProcessOrders(t *testing.T) {
 		log.Fatalf("failed to append ca certs")
 	}
 
-	// Указываем аутентификационные данные для транспортного протокола с помощью DialOption.
+	// Указываем аутентификационные данные для транспортного протокола с помощью DialOption
 	opts := []grpc.DialOption{
-		// Указываем один и тот же токен OAuth в параметрах всех вызовов в рамках одного соединения.
-		// Если нужно указывать токен для каждого вызова отдельно, используем CallOption.
+		// Указываем один и тот же токен OAuth в параметрах всех вызовов в рамках одного соединения
+		// Если нужно указывать токен для каждого вызова отдельно, используем CallOption
 		grpc.WithPerRPCCredentials(tokau),
 		// Указываем транспортные аутентификационные данные в виде параметров соединения
 		// Поле ServerName должно быть равно значению Common Name, указанному в сертификате
@@ -92,7 +93,7 @@ func TestClient_ProcessOrders(t *testing.T) {
 		"102": 102,
 		"106": 106,
 		"104": 104,
-		"105": 105,
+		"101": 101,
 		"11":  11,
 		"103": 103,
 	}
@@ -206,10 +207,6 @@ func BenchmarkTestClient_ProcessOrders(b *testing.B) {
 			}
 		}
 
-		// if err := streamProcOrder.Send(&wrappers.StringValue{Value: "103"}); err != nil {
-		// 	log.Fatalf("%v.Send(%v) = %v", client, "103", err)
-		// }
-
 		chs := make(chan struct{}) // Создаем канал для горутин (create chanel for goroutines)
 		// Вызываем функцию с помощью горутин, распараллеливаем чтение сообщений, возвращаемых сервисом
 		go asncClientBidirectionalRPC(streamProcOrder, chs)
@@ -230,7 +227,7 @@ func BenchmarkTestClient_ProcessOrders(b *testing.B) {
 }
 
 // Provides OAuth2 connection token
-// Учетные данные для соединения. Предоставление токена OAuth2
+// Тест предоставления токена OAuth2
 func TestFetchToken(t *testing.T) {
 	go func() {
 		fetchToken()
@@ -239,4 +236,37 @@ func TestFetchToken(t *testing.T) {
 			log.Println("Token true")
 		}
 	}()
+}
+
+// Сигнатура для тестирования типа Streamer. Signature of method to test
+type strmer interface {
+	Streamer(context.Context, *grpc.StreamDesc, *grpc.ClientConn, string, ...grpc.CallOption) (grpc.ClientStream, error)
+}
+
+type strm struct {
+	strmer
+	ctx     context.Context
+	desc    *grpc.StreamDesc
+	cc      *grpc.ClientConn
+	method  string
+	opts    []grpc.CallOption
+	success bool
+}
+
+func (d *strm) Streamer(context.Context, *grpc.StreamDesc, *grpc.ClientConn, string, ...grpc.CallOption) (grpc.ClientStream, error) {
+	if d.success {
+		return nil, nil
+	}
+	return nil, fmt.Errorf("Streamer test error")
+}
+
+func TestClientStreamInterceptor(t *testing.T) {
+
+	var su strm
+	log.Println("===== [Client Interceptor] ", su.method)
+	// Call func streamer. Вызов сигнатуры streamer
+	_, err := su.Streamer(su.ctx, su.desc, su.cc, su.method, su.opts...)
+	if err != nil {
+		log.Println("Error Interceptor", err)
+	}
 }

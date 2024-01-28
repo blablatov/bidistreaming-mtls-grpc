@@ -188,7 +188,7 @@ func clientStreamInterceptor(ctx context.Context, desc *grpc.StreamDesc, cc *grp
 	// Этап предобработки, есть доступ к RPC-запросу перед его отправкой на сервер
 	log.Println("===== [Client Interceptor] ", method)
 
-	s, err := streamer(ctx, desc, cc, method, opts...) // Call func streamer. Вызов функции streamer.
+	s, err := streamer(ctx, desc, cc, method, opts...) // Call func streamer. Вызов функции streamer
 	if err != nil {
 		return nil, err
 	}
