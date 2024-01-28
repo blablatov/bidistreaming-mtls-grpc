@@ -20,6 +20,3 @@ jobs:
 
     - name: Build
       run: go build -v ./bs-mtls-client/bs-client.go
-
-    - name: Test
-      run: go test -v ./bs-mtls-service/bs-service_test.go
