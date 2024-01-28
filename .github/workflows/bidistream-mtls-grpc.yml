@@ -19,9 +19,6 @@ jobs:
         go-version: 1.19
 
     - name: Build
-      run: go build -v ./bs-mtls-service/bs-service.go
-
-    - name: Build
       run: go build -v ./bs-mtls-client/bs-client.go
 
     - name: Test
