@@ -114,7 +114,7 @@ func main() {
 
 	for k, v := range mp {
 		if k != "" && k != "0" {
-			// Sends IDs. Отправляем сообщения с ID сервису.
+			// Sends IDs. Отправляем сообщения с ID сервису
 			if err := streamProcOrder.Send(&wrappers.StringValue{Value: k}); err != nil {
 				log.Fatalf("%v.Send(%v) = %v", client, k, err)
 			}
