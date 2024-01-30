@@ -36,13 +36,15 @@ func TestClient_ProcessOrders(t *testing.T) {
 
 	mockClient := NewMockOrderManagementClient(ctrl)
 
-	id := "Sumsung S9999"
-	description := "Samsung Galaxy S10 is the latest smart phone, launched in February 2039"
-	price := float32(7777.0)
-	req := &pb.Order{Id: id, Description: description, Price: price}
+	id := "104"
+	items := []string{"Google Home Mini", "Google Nest Hub"}
+	destination := "San Jose, CA"
+	price := float32(400.00)
+	req := &pb.Order{Id: id, Items: items, Destination: destination, Price: price}
 
 	mockClient.EXPECT().ProcessOrders(gomock.Any(), &rpcMsg{msg: req}).
-		Return(&wrappers.StringValue{Value: "Product_mock" + id}, nil)
+		Return(&pb.CombinedShipment{Id: "Id_mock" + id}, nil)
+
 	testClient_ProcessOrders(t, mockClient)
 }
 
@@ -54,17 +56,25 @@ func testClient_ProcessOrders(t *testing.T, client pb.OrderManagementClient) {
 	if err != nil {
 		log.Fatalf("%v.ProcessOrders(_) = _, %v", client, err)
 	}
-	// Отправляем сообщения сервису.
-	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "102"}); err != nil {
-		log.Fatalf("%v.Send(%v) = %v", client, "102", err)
+
+	// IDs for test. Мапа с тестируемыми ID
+	mp := map[string]int{
+		"106": 106,
+		"104": 104,
+		"105": 105,
+		"11":  11,
+		"103": 103,
 	}
 
-	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "103"}); err != nil {
-		log.Fatalf("%v.Send(%v) = %v", client, "103", err)
-	}
-
-	if err := streamProcOrder.Send(&wrappers.StringValue{Value: "104"}); err != nil {
-		log.Fatalf("%v.Send(%v) = %v", client, "104", err)
+	for k, v := range mp {
+		if k != "" && v != 0 {
+			// Отправляем сообщения сервису
+			if err := streamProcOrder.Send(&wrappers.StringValue{Value: k}); err != nil {
+				log.Fatalf("%v.Send(%v) = %v", client, k, err)
+			}
+		} else {
+			log.Printf("ID not found(%s) = %b", k, v)
+		}
 	}
 
 	channel := make(chan int) // Создаем канал для горутин (goroutines).
@@ -80,14 +90,3 @@ func testClient_ProcessOrders(t *testing.T, client pb.OrderManagementClient) {
 	}
 	channel <- 1
 }
-
-/*func asncClientBidirectionalRPC(streamProcOrder pb.OrderManagementClient, c chan int) {
-	for {
-		combinedShipment, errProcOrder := streamProcOrder.Recv() // Читаем сообщения сервиса на клиентской стороне.
-		if errProcOrder == io.EOF {                              // Условие для обнаружения конца потока.
-			break
-		}
-		log.Println("Combined shipment : ", combinedShipment.OrdersList)
-	}
-	<-c
-}*/
