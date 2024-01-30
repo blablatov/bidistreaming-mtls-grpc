@@ -6,7 +6,7 @@
 Затем клиентское и серверное приложения обмениваются сообщениями с префиксом длины, не дожидаясь завершения взаимодействия с противоположной стороны. Клиент и сервер отправляют сообщения одновременно.
 Используется модель ошибок, встроенная в протокол gRPC и более развитая модель ошибок, реализованная в пакете Google API google.rpc      
 
-## Сборка, запуск и тестирование gRPC-сервиса. Building, running, testing gRPC-service  
+### Сборка, запуск и тестирование gRPC-сервиса. Building, running, testing gRPC-service  
 Перейти в `bidistream-mtls-grpc/bs-mtls-service` и выполнить  
 In order to build, Go to ``Go`` module directory location `bidistream-mtls-grpc/bs-mtls-service` and execute the following
  shell command:
@@ -27,7 +27,7 @@ go test -bench .
 ```   
 
 
-## Сборка, запуск и тестирование gRPC-клиента. Building, running, testing gRPC-client  
+### Сборка, запуск и тестирование gRPC-клиента. Building, running, testing gRPC-client  
 Перейти в `bidistream-mtls-grpc/bs-mtls-service` и выполнить.    
 In order to build, Go to ``Go`` module directory location `bidistream-mtls-grpc/bs-mtls-client` and execute the following shell command:
 ```
@@ -49,7 +49,7 @@ go test -bench .
 
 
 
-## Генерация серверного и клиентского кода из IDL Protocol Buffers. Generate via IDL of Protocol Buffers Server side and Client side code  
+### Генерация серверного и клиентского кода из IDL Protocol Buffers. Generate via IDL of Protocol Buffers Server side and Client side code  
 Перейти в `bidistream-mtls-grpc/bs-mtls-proto` и выполнить.     
 Go to ``Go`` module directory location `bidistream-mtls-grpc/bs-mtls-proto` and execute the following shell commands:    
 ``` 
