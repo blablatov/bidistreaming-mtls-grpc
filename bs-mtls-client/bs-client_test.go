@@ -175,7 +175,10 @@ func BenchmarkTestClient_ProcessOrders(b *testing.B) {
 
 		client := pb.NewOrderManagementClient(conn)
 
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		// Finding of Duration. Тестированием определить оптимальное значение для крайнего срока кпд
+		clientDeadline := time.Now().Add(time.Duration(2000 * time.Millisecond))
+		ctx, cancel := context.WithDeadline(context.Background(), clientDeadline)
+
 		defer cancel()
 
 		// Process Order : Bi-distreaming scenario
@@ -210,7 +213,7 @@ func BenchmarkTestClient_ProcessOrders(b *testing.B) {
 		chs := make(chan struct{}) // Создаем канал для горутин (create chanel for goroutines)
 		// Вызываем функцию с помощью горутин, распараллеливаем чтение сообщений, возвращаемых сервисом
 		go asncClientBidirectionalRPC(streamProcOrder, chs)
-		time.Sleep(time.Millisecond * 500) // Имитируем задержку при отправке сервису сообщений. Wait time
+		time.Sleep(time.Millisecond * 100) // Имитируем задержку при отправке сервису сообщений. Wait time
 
 		// Сигнализируем о завершении клиентского потока (с ID заказов)
 		// Signal about close stream of client
