@@ -1,10 +1,10 @@
-## Generate private RSA key
+### Generate private RSA key
 
 To generate RSA key using OpenSSL tool, we need to use `genrsa` command like below.
-Генерируем закрытый ключ сертификата:
+Генерируем закрытый ключ сертификата сервера:
 
 ```shell script
-$ openssl genrsa<1> -out server.key<2> 2048<3>
+$ openssl genrsa -out server.key 4096
 ```
 
 1. Specifies which algorithm to use to create the key. OpenSSL supports creating keys with a different algorithm like
@@ -12,11 +12,10 @@ $ openssl genrsa<1> -out server.key<2> 2048<3>
 2. Specifies the name of the generated key. Can have any name with `.key` as extension.
 3. Specifies the size of the key. The default size for RSA keys is only 512 bits, which is not secure because an
  intruder can use brute force to recover your private key. So we use a 2048-bit RSA key which is considered to be secure.
-
 Here can also add a passphrase to the key.  
 
 
-## Generate CA and self-signed certificates
+### Generate CA and self-signed certificates
 Let’s create a Certificate Authority and self-signed certificate for our example.   
 To generate RSA key using OpenSSL tool, execute the following command.  
 Создание корневого приватного ключа:  
@@ -47,7 +46,7 @@ We can check the validity period for 02 years and the issuer and subject should 
 The next step is to create a server private key and certificate. Unlike the previous section, we need to get the certificate signed by our new Certificate Authority(CA). 
 
 
-## Generate server certificate
+### Generate server certificate
 Once we have the server private key, we can proceed to create a Certificate Signing Request (CSR).
 Execute the following command to create a certificate signing request.  
 Генерируем запрос на сертификат CSR. В этом запросе нужно передать конкретные значения в параметре "subj".  
@@ -94,12 +93,12 @@ Now we have created server key(server.key) and server certificate(server.crt).
 We can use them to enable mutual TLS in server side.  
 
 
-## Generate client key and certificate
+### Generate client key and certificate
 Generating the client certificate is very similar to creating the server certificate. We need to execute the following commands to create a private key, create a certificate signing request and create a certificate for client application.
 Создать закрытый ключ, создать запрос на подпись сертификата и создать сертификат для клиентского приложения:  
   
 ```shell script
-$ openssl genrsa -out client.key 2048
+$ openssl genrsa -out client.key 4096
 $ openssl req -new -key client.key -out client.csr
 $ openssl x509 -req -days 365 -sha256 -in client.csr -CA ca.crt -CAkey ca.key -set_serial 2 -out client.crt
-```
+```  
