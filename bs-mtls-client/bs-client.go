@@ -123,6 +123,10 @@ func main() {
 		}
 	}
 
+	// if err := streamProcOrder.Send(&wrappers.StringValue{Value: "103"}); err != nil {
+	// 	log.Fatalf("%v.Send(%v) = %v", client, "103", err)
+	// }
+
 	chs := make(chan struct{}) // Создаем канал для горутин (create chanel for goroutines)
 	//chs := make(chan int, 1)
 	// Вызываем функцию с помощью горутин, распараллеливаем чтение сообщений, возвращаемых сервисом
@@ -143,6 +147,7 @@ func main() {
 	cancel()
 	log.Printf("RPC Status : %v", ctx.Err()) // Status of context. Состояние текущего контекста
 
+	//chs <- struct{}{}
 	<-chs
 }
 
@@ -162,7 +167,8 @@ func asncClientBidirectionalRPC(streamProcOrder pb.OrderManagement_ProcessOrders
 			log.Println("Combined shipment : ", combinedShipment.Status, combinedShipment.OrdersList)
 		}
 	}
-	<-c
+	//c <- struct{}{} // break
+	<-c // loop
 }
 
 // Provides OAuth2 connection token
